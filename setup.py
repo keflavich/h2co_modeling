@@ -14,7 +14,7 @@ with open('README.rst') as file:
 #    long_description += file.read()
 
 
-version = '0.1'
+__version__ = '0.1'
 
 
 setup(name='h2co_modeling',
