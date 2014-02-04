@@ -142,11 +142,13 @@ class SmoothtauModels(object):
         return tauratio,tauratio_hopkins,tau,tau_hopkins
 
 
-    def plot_x_vs_y(self, x='dens', y='tauratio', axis=pl.gca(), abundance=-8.5,
+    def plot_x_vs_y(self, x='dens', y='tauratio', axis=None, abundance=-8.5,
                     sigma=1.0, temperature=20, opr=1, **kwargs):
         tau1x,tau2x,dens,col = self.select_data(abundance=abundance,temperature=temperature,opr=opr)
         tau,vtau,vtau_ratio = self.generate_tau_functions(abundance=abundance,temperature=temperature,opr=opr)
 
+        if axis is None:
+            axis = pl.gca()
 
         master_linestyles = ['-']*10
         master_colors = (['#880000', '#008888', '#CCCCCC']+
