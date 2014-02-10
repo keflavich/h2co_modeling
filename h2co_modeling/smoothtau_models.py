@@ -44,7 +44,7 @@ class SmoothtauModels(object):
         abundance: float
             Logarithmic abundance of ortho-Formaldehyde with respect to H2 per velocity
             gradient
-        opr: float
+        opr: float or None
             Ortho/para ratio of molecular hydrogen.  Must be in the range 1e-3 to 3
             (0 is physically acceptable, but not supported by the RADEX code unless you change
             the format of the input file)
@@ -62,7 +62,10 @@ class SmoothtauModels(object):
             radtab = self.radtab # shorthand
             #tolerance = {-10:0.1, -9.5: 0.3, -9: 0.1, -8:0.1, -8.5: 0.3}[abundance]
             OKtem = radtab['Temperature'] == temperature
-            OKopr = radtab['opr'] == opr
+            if opr is not None:
+                OKopr = radtab['opr'] == opr
+            else:
+                OKopr = True
             OKabund = np.abs((radtab['log10col'] - radtab['log10dens'] - np.log10(3.08e18)) - abundance) < tolerance
             OK = OKtem * OKopr * OKabund
 
@@ -150,15 +153,21 @@ class SmoothtauModels(object):
         if axis is None:
             axis = pl.gca()
 
-        master_linestyles = ['-']*10
-        master_colors = (['#880000', '#008888', '#CCCCCC']+
-                         ["#"+x for x in '348ABD, 7A68A6, A60628, 467821, CF4457, 188487, E24A33'.split(', ')])
-
-        tauratio = vtau_ratio(dens, line1=tau1x, line2=tau2x, sigma=sigma)
-        tau11 = tau1 = tauA = vtau(dens, line=tau1x, sigma=sigma)
-        tau22 = tau2 = tauB = vtau(dens, line=tau2x, sigma=sigma)
+        if sigma == 0:
+            tau11 = tau1 = tauA = tau1x
+            tau22 = tau2 = tauB = tau2x
+            tauratio = tau11/tau22
+        else:
+            tauratio = vtau_ratio(dens, line1=tau1x, line2=tau2x, sigma=sigma)
+            tau11 = tau1 = tauA = vtau(dens, line=tau1x, sigma=sigma)
+            tau22 = tau2 = tauB = vtau(dens, line=tau2x, sigma=sigma)
+        
+        # couldn't think of anything better, I guess?
+        oitaruat = 1/tauratio
 
         xvals = eval(x)
         yvals = eval(y)
 
-        return axis.plot(xvals, yvals, **kwargs)
+        inds = np.argsort(xvals)
+
+        return axis.plot(xvals[inds], yvals[inds], **kwargs)
