@@ -69,14 +69,18 @@ class SmoothtauModels(object):
             OKabund = np.abs((radtab['log10col'] - radtab['log10dens'] - np.log10(3.08e18)) - abundance) < tolerance
             OK = OKtem * OKopr * OKabund
 
+            tex1x = radtab['Tex_low'][OK]
+            tex2x = radtab['Tex_hi'][OK]
+            trot1x = radtab['TrotLow'][OK]
+            trot2x = radtab['TrotUpp'][OK]
             tau1x = radtab['TauLow'][OK]
             tau2x = radtab['TauUpp'][OK]
             dens = radtab['log10dens'][OK]
             col = radtab['log10col'][OK]
 
-            self._datacache[key] = tau1x,tau2x,dens,col
+            self._datacache[key] = trot1x,trot2x,tex1x,tex2x,tau1x,tau2x,dens,col
 
-            return tau1x,tau2x,dens,col
+            return trot1x,trot2x,tex1x,tex2x,tau1x,tau2x,dens,col
 
 
     def generate_tau_functions(self, **kwargs):
@@ -84,7 +88,7 @@ class SmoothtauModels(object):
         Generate functions to compute the optical depth as a function of density
         given different distribution shapes.
         """
-        tau1x,tau2x,dens,col = self.select_data(**kwargs)
+        trot1x,trot2x,tex1x,tex2x,tau1x,tau2x,dens,col = self.select_data(**kwargs)
 
         # ddens = (10**dens[1]-10**dens[0])
         #dlogdens = (dens[1]-dens[0])
@@ -147,7 +151,7 @@ class SmoothtauModels(object):
 
     def plot_x_vs_y(self, x='dens', y='tauratio', axis=None, abundance=-8.5,
                     sigma=1.0, temperature=20, opr=1, **kwargs):
-        tau1x,tau2x,dens,col = self.select_data(abundance=abundance,temperature=temperature,opr=opr)
+        trot1x,trot2x,tex1x,tex2x,tau1x,tau2x,dens,col = self.select_data(abundance=abundance,temperature=temperature,opr=opr)
         tau,vtau,vtau_ratio = self.generate_tau_functions(abundance=abundance,temperature=temperature,opr=opr)
 
         if axis is None:
@@ -171,3 +175,68 @@ class SmoothtauModels(object):
         inds = np.argsort(xvals)
 
         return axis.plot(xvals[inds], yvals[inds], **kwargs)
+
+    def generate_trot_functions(self, **kwargs):
+        """
+        Generate functions to compute the optical depth as a function of density
+        given different distribution shapes.
+        """
+        trot1x,trot2x,tex1x,tex2x,tau1x,tau2x,dens,col = self.select_data(**kwargs)
+
+        # ddens = (10**dens[1]-10**dens[0])
+        #dlogdens = (dens[1]-dens[0])
+        #dlndens = dlogdens * np.log(10)
+
+        def trot(meandens, line=trot1x, sigma=1.0, hightail=False,
+                 hopkins=False, powertail=False, lowtail=False,
+                 compressive=False, divide_by_col=False, **kwargs):
+            if compressive:
+                distr = turbulent_pdfs.compressive_distr(meandens,sigma,**kwargs)
+            elif lowtail:
+                distr = turbulent_pdfs.lowtail_distr(meandens,sigma,**kwargs)
+            elif powertail or hightail:
+                distr = turbulent_pdfs.hightail_distr(meandens,sigma,**kwargs)
+            elif hopkins:
+                T = hopkins_pdf.T_of_sigma(sigma, logform=True)
+                #distr = 10**dens * hopkins_pdf.hopkins(10**(dens), meanrho=10**(meandens), sigma=sigma, T=T) # T~0.05 M_C
+                distr = hopkins_pdf.hopkins_masspdf_ofmeandens(10**dens, 10**meandens, sigma_volume=sigma, T=T, normalize=True)
+                # Hopkins is integral-normalized, not sum-normalized
+                #distr /= distr.sum()
+            else:
+                #distr = lognormal(10**dens, 10**meandens, sigma) * dlndens
+                distr = lognormal_massweighted(10**dens, 10**meandens, sigma, normalize=True)
+            if divide_by_col:
+                return (distr*line/(10**col)).sum()
+            else:
+                return (distr*line).sum()
+
+        def vtrot(meandens,**kwargs):
+            """ vectorized trot """
+            if hasattr(meandens,'size') and meandens.size == 1:
+                return trot(meandens, **kwargs)
+            trotmean = np.array([trot(x,**kwargs) for x in meandens])
+            return trotmean
+
+        def vtrot_ratio(meandens, line1=trot1x, line2=trot2x, **kwargs):
+            t1 = vtrot(meandens, line=line1, **kwargs)
+            t2 = vtrot(meandens, line=line2, **kwargs)
+            return t1/t2
+
+        return trot,vtrot,vtrot_ratio
+
+    def generate_simpletools_trot(self,**kwargs):
+        trot,vtrot,vtrot_ratio = self.generate_trot_functions(**kwargs)
+
+        def trotratio(meandens, sigma, **kwargs):
+            return vtrot_ratio(np.log10(meandens), sigma=sigma, **kwargs)
+
+        def trotratio_hopkins(meandens, sigma, **kwargs):
+            return vtrot_ratio(np.log10(meandens), sigma=sigma, hopkins=True, **kwargs)
+
+        def trot(meandens, sigma, line, **kwargs):
+            return vtrot(np.log10(meandens), sigma=sigma, line=line, **kwargs)
+
+        def trot_hopkins(meandens, sigma, line, **kwargs):
+            return vtrot(np.log10(meandens), sigma=sigma, hopkins=True, line=line, **kwargs)
+
+        return trotratio,trotratio_hopkins,trot,trot_hopkins
