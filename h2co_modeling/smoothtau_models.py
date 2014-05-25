@@ -94,9 +94,14 @@ class SmoothtauModels(object):
         #dlogdens = (dens[1]-dens[0])
         #dlndens = dlogdens * np.log(10)
 
-        def tau(meandens, line=tau1x, sigma=1.0, hightail=False,
+        def tau(meandens, line=tau1x, tex=tex1x, tbg=2.73, sigma=1.0, hightail=False,
                 hopkins=False, powertail=False, lowtail=False,
                 compressive=False, divide_by_col=False, **kwargs):
+            """
+            To account for non-zero tex and/or tbg~tex, put those #'s in.
+
+            The output is "observed" tau = -log(T_mb/T_bg)
+            """
             if compressive:
                 distr = turbulent_pdfs.compressive_distr(meandens,sigma,**kwargs)
             elif lowtail:
@@ -112,10 +117,12 @@ class SmoothtauModels(object):
             else:
                 #distr = lognormal(10**dens, 10**meandens, sigma) * dlndens
                 distr = lognormal_massweighted(10**dens, 10**meandens, sigma, normalize=True)
+
+            tau_each = -np.log((tbg*np.exp(-line) + (1-np.exp(-line))*tex)/tbg)
             if divide_by_col:
-                return (distr*line/(10**col)).sum()
+                return (distr*tau_each/(10**col)).sum()
             else:
-                return (distr*line).sum()
+                return (distr*tau_each).sum()
 
         def vtau(meandens,**kwargs):
             """ vectorized tau """
@@ -124,9 +131,10 @@ class SmoothtauModels(object):
             taumean = np.array([tau(x,**kwargs) for x in meandens])
             return taumean
 
-        def vtau_ratio(meandens, line1=tau1x, line2=tau2x, **kwargs):
-            t1 = vtau(meandens, line=line1, **kwargs)
-            t2 = vtau(meandens, line=line2, **kwargs)
+        def vtau_ratio(meandens, line1=tau1x, line2=tau2x, tex1=tex1x,
+                       tex2=tex2x, tbg1=2.73, tbg2=2.73, **kwargs):
+            t1 = vtau(meandens, line=line1, tex=tex1, tbg=tbg1, **kwargs)
+            t2 = vtau(meandens, line=line2, tex=tex2, tbg=tbg2, **kwargs)
             return t1/t2
 
         return tau,vtau,vtau_ratio
