@@ -83,6 +83,34 @@ class SmoothtauModels(object):
             return trot1x,trot2x,tex1x,tex2x,tau1x,tau2x,dens,col
 
 
+    def get_distr(self, meandens, dens, sigma=1.0, hightail=False, hopkins=False,
+                  powertail=False, lowtail=False, compressive=False, **kwargs):
+        """
+        hightail : bool
+        hopkins : bool
+        powertail : bool
+        lowtail : bool
+        compressive : bool
+            Arguments defining what underlying density distribution to use
+        """
+        if compressive:
+            distr = turbulent_pdfs.compressive_distr(meandens,sigma,**kwargs)
+        elif lowtail:
+            distr = turbulent_pdfs.lowtail_distr(meandens,sigma,**kwargs)
+        elif powertail or hightail:
+            distr = turbulent_pdfs.hightail_distr(meandens,sigma,**kwargs)
+        elif hopkins:
+            T = hopkins_pdf.T_of_sigma(sigma, logform=True)
+            #distr = 10**dens * hopkins_pdf.hopkins(10**(dens), meanrho=10**(meandens), sigma=sigma, T=T) # T~0.05 M_C
+            distr = hopkins_pdf.hopkins_masspdf_ofmeandens(10**dens, 10**meandens, sigma_volume=sigma, T=T, normalize=True)
+            # Hopkins is integral-normalized, not sum-normalized
+            #distr /= distr.sum()
+        else:
+            #distr = lognormal(10**dens, 10**meandens, sigma) * dlndens
+            distr = lognormal_massweighted(10**dens, 10**meandens, sigma, normalize=True)
+
+        return distr
+
     def generate_tau_functions(self, **kwargs):
         """
         Generate functions to compute the optical depth as a function of density
@@ -94,35 +122,45 @@ class SmoothtauModels(object):
         #dlogdens = (dens[1]-dens[0])
         #dlndens = dlogdens * np.log(10)
 
-        def tau(meandens, line=tau1x, tex=tex1x, tbg=2.73, sigma=1.0, hightail=False,
-                hopkins=False, powertail=False, lowtail=False,
-                compressive=False, divide_by_col=False, **kwargs):
+        def tau(meandens, line=tau1x, tex=tex1x, tbg=2.73, sigma=1.0,
+                dens=dens, **kwargs):
             """
             To account for non-zero tex and/or tbg~tex, put those #'s in.
 
             The output is "observed" tau = -log(T_mb/T_bg)
+
+            It is computed by determining the optical depth in each density bin
+            with a corresponding excitation temperature:
+            tau_each = -np.log((tbg*np.exp(-line) + (1-np.exp(-line))*tex)/tbg)
+            then taking the weighted average of these.
+
+            It's not obvious that this is meaningful.  Instead we should be
+            averaging T_line
+
+            Parameters
+            ----------
+            hightail : bool
+            hopkins : bool
+            powertail : bool
+            lowtail : bool
+            compressive : bool
+                Arguments defining what underlying density distribution to use
+            sigma : float
+                Width of the underlying distribution
+            tbg : float
+                Background temperature (scalar)
+            line : array
+            tex : array
+                The values to be averaged.  ``line`` generally refers to the
+                optical depth and ``tex`` to the excitation temperature
+            meandens : float
+                The density at which tau should be computed
             """
-            if compressive:
-                distr = turbulent_pdfs.compressive_distr(meandens,sigma,**kwargs)
-            elif lowtail:
-                distr = turbulent_pdfs.lowtail_distr(meandens,sigma,**kwargs)
-            elif powertail or hightail:
-                distr = turbulent_pdfs.hightail_distr(meandens,sigma,**kwargs)
-            elif hopkins:
-                T = hopkins_pdf.T_of_sigma(sigma, logform=True)
-                #distr = 10**dens * hopkins_pdf.hopkins(10**(dens), meanrho=10**(meandens), sigma=sigma, T=T) # T~0.05 M_C
-                distr = hopkins_pdf.hopkins_masspdf_ofmeandens(10**dens, 10**meandens, sigma_volume=sigma, T=T, normalize=True)
-                # Hopkins is integral-normalized, not sum-normalized
-                #distr /= distr.sum()
-            else:
-                #distr = lognormal(10**dens, 10**meandens, sigma) * dlndens
-                distr = lognormal_massweighted(10**dens, 10**meandens, sigma, normalize=True)
+            distr = self.get_distr(meandens, dens=dens, **kwargs)
 
             tau_each = -np.log((tbg*np.exp(-line) + (1-np.exp(-line))*tex)/tbg)
-            if divide_by_col:
-                return (distr*tau_each/(10**col)).sum()
-            else:
-                return (distr*tau_each).sum()
+
+            return (distr*tau_each).sum()
 
         def vtau(meandens,**kwargs):
             """ vectorized tau """
@@ -138,6 +176,7 @@ class SmoothtauModels(object):
             return t1/t2
 
         return tau,vtau,vtau_ratio
+
 
     def generate_simpletools(self,**kwargs):
         tau,vtau,vtau_ratio = self.generate_tau_functions(**kwargs)
@@ -232,6 +271,7 @@ class SmoothtauModels(object):
 
         return trot,vtrot,vtrot_ratio
 
+
     def generate_simpletools_trot(self,**kwargs):
         trot,vtrot,vtrot_ratio = self.generate_trot_functions(**kwargs)
 
@@ -248,3 +288,59 @@ class SmoothtauModels(object):
             return vtrot(np.log10(meandens), sigma=sigma, hopkins=True, line=line, **kwargs)
 
         return trotratio,trotratio_hopkins,trot,trot_hopkins
+
+    def generate_tline_functions(self, **kwargs):
+        """
+        Generate functions to compute the optical depth as a function of density
+        given different distribution shapes.
+        """
+        trot1x,trot2x,tex1x,tex2x,tau1x,tau2x,dens,col = self.select_data(**kwargs)
+
+        def tline(meandens, lvg_tau=tau1x, tex=tex1x, tbg=2.73, dens=dens,
+                  **kwargs):
+            """
+            To account for non-zero tex and/or tbg~tex, put those #'s in.
+            """
+            distr = self.get_distr(meandens, dens=dens, **kwargs)
+
+            #tau_each = -np.log((tbg*np.exp(-line) + (1-np.exp(-line))*tex)/tbg)
+
+            #tline_each = (1-np.exp(-tau)) * (tex-tbg)
+
+            # Think of this as a series of independent slabs
+            # The blackbody is attenuated as:
+            # B_nu * exp(-tau1) * exp(-tau2) * exp(-tau3)...
+            # and the foreground added is
+            # (1-exp(-tau1)) S1 + (1-exp(-tau2)) S2 + ...
+            # so the optical 
+
+            tau_each = lvg_tau * distr
+            attenuated_source = tbg*np.exp(-tau_each.sum())
+            tline_each = (1-np.exp(-tau_each))*tex
+
+            return attenuated_source + tline_each.sum()
+
+        def tline1(meandens, **kwargs):
+            return tline(meandens, lvg_tau=tau1x, tex=tex1x, **kwargs)
+
+        def tline2(meandens, **kwargs):
+            return tline(meandens, lvg_tau=tau2x, tex=tex2x, **kwargs)
+
+        def vtline(meandens,**kwargs):
+            """ vectorized tline """
+            if hasattr(meandens,'size') and meandens.size == 1:
+                return tline(meandens, **kwargs)
+            tlinemean = np.array([tline(x,**kwargs) for x in meandens])
+            return tlinemean
+
+        def vtline_ratio(meandens, line1=tau1x, line2=tau2x, tex1=tex1x,
+                         tex2=tex2x, tbg1=2.73, tbg2=2.73, sub_tbg=True,
+                         **kwargs):
+            t1 = vtline(meandens, line=line1, tex=tex1, tbg=tbg1, **kwargs)
+            t2 = vtline(meandens, line=line2, tex=tex2, tbg=tbg2, **kwargs)
+            if sub_tbg:
+                return (t1-tbg1)/(t2-tbg2)
+            else:
+                return t1/t2
+
+        return tline,vtline,vtline_ratio,tline1,tline2
