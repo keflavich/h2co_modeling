@@ -297,6 +297,7 @@ class SmoothtauModels(object):
         trot1x,trot2x,tex1x,tex2x,tau1x,tau2x,dens,col = self.select_data(**kwargs)
 
         def tline(meandens, lvg_tau=tau1x, tex=tex1x, tbg=2.73, dens=dens,
+                  obs_tau=False,
                   **kwargs):
             """
             To account for non-zero tex and/or tbg~tex, put those #'s in.
@@ -318,7 +319,11 @@ class SmoothtauModels(object):
             attenuated_source = tbg*np.exp(-tau_each.sum())
             tline_each = (1-np.exp(-tau_each))*tex
 
-            return attenuated_source + tline_each.sum()
+            tline = attenuated_source + tline_each.sum()
+            if obs_tau:
+                return -np.log(tline/tbg)
+            else:
+                return tline
 
         def tline1(meandens, **kwargs):
             return tline(meandens, lvg_tau=tau1x, tex=tex1x, **kwargs)
@@ -333,11 +338,14 @@ class SmoothtauModels(object):
             tlinemean = np.array([tline(x,**kwargs) for x in meandens])
             return tlinemean
 
-        def vtline_ratio(meandens, line1=tau1x, line2=tau2x, tex1=tex1x,
+        def vtline_ratio(meandens, lvg_tau1=tau1x, lvg_tau2=tau2x, tex1=tex1x,
                          tex2=tex2x, tbg1=2.73, tbg2=2.73, sub_tbg=True,
+                         obs_tau_ratio=False,
                          **kwargs):
-            t1 = vtline(meandens, line=line1, tex=tex1, tbg=tbg1, **kwargs)
-            t2 = vtline(meandens, line=line2, tex=tex2, tbg=tbg2, **kwargs)
+            t1 = vtline(meandens, lvg_tau=lvg_tau1, tex=tex1, tbg=tbg1,
+                        obs_tau=obs_tau_ratio, **kwargs)
+            t2 = vtline(meandens, lvg_tau=lvg_tau2, tex=tex2, tbg=tbg2,
+                        obs_tau=obs_tau_ratio, **kwargs)
             if sub_tbg:
                 return (t1-tbg1)/(t2-tbg2)
             else:
