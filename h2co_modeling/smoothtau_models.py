@@ -156,11 +156,16 @@ class SmoothtauModels(object):
             meandens : float
                 The density at which tau should be computed
             """
-            distr = self.get_distr(meandens, dens=dens, **kwargs)
+            distr = self.get_distr(meandens, dens=dens, sigma=sigma, **kwargs)
 
-            tau_each = -np.log((tbg*np.exp(-line) + (1-np.exp(-line))*tex)/tbg)
+            tau_each = line * distr
+            attenuated_source = (tbg*np.exp(-tau_each.sum()))
 
-            return (distr*tau_each).sum()
+            tline_each = (1-np.exp(-tau_each))*tex
+            tline = attenuated_source + (tline_each).sum()
+            obs_tau = -np.log(tline/tbg)
+
+            return obs_tau
 
         def vtau(meandens,**kwargs):
             """ vectorized tau """
@@ -296,13 +301,13 @@ class SmoothtauModels(object):
         """
         trot1x,trot2x,tex1x,tex2x,tau1x,tau2x,dens,col = self.select_data(**kwargs)
 
-        def tline(meandens, lvg_tau=tau1x, tex=tex1x, tbg=2.73, dens=dens,
+        def tline(meandens, lvg_tau=tau1x, tex=tex1x, tbg=2.73, dens=dens, sigma=1.0,
                   obs_tau=False,
                   **kwargs):
             """
             To account for non-zero tex and/or tbg~tex, put those #'s in.
             """
-            distr = self.get_distr(meandens, dens=dens, **kwargs)
+            distr = self.get_distr(meandens, dens=dens, sigma=sigma, **kwargs)
 
             #tau_each = -np.log((tbg*np.exp(-line) + (1-np.exp(-line))*tex)/tbg)
 
@@ -319,7 +324,7 @@ class SmoothtauModels(object):
             attenuated_source = tbg*np.exp(-tau_each.sum())
             tline_each = (1-np.exp(-tau_each))*tex
 
-            tline = attenuated_source + tline_each.sum()
+            tline = attenuated_source + (tline_each).sum()
             if obs_tau:
                 return -np.log(tline/tbg)
             else:
@@ -339,15 +344,15 @@ class SmoothtauModels(object):
             return tlinemean
 
         def vtline_ratio(meandens, lvg_tau1=tau1x, lvg_tau2=tau2x, tex1=tex1x,
-                         tex2=tex2x, tbg1=2.73, tbg2=2.73, sub_tbg=True,
+                         tex2=tex2x, tbg1=2.73, tbg2=2.73, add_tbg=False,
                          obs_tau_ratio=False,
                          **kwargs):
             t1 = vtline(meandens, lvg_tau=lvg_tau1, tex=tex1, tbg=tbg1,
                         obs_tau=obs_tau_ratio, **kwargs)
             t2 = vtline(meandens, lvg_tau=lvg_tau2, tex=tex2, tbg=tbg2,
                         obs_tau=obs_tau_ratio, **kwargs)
-            if sub_tbg:
-                return (t1-tbg1)/(t2-tbg2)
+            if add_tbg:
+                return (t1+tbg1)/(t2+tbg2)
             else:
                 return t1/t2
 
