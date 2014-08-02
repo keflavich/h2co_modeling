@@ -66,7 +66,8 @@ class SmoothtauModels(object):
                 OKopr = radtab['opr'] == opr
             else:
                 OKopr = True
-            OKabund = np.abs((radtab['log10col'] - radtab['log10dens'] - np.log10(3.08e18)) - abundance) < tolerance
+            OKabund = (np.abs((radtab['log10col'] - radtab['log10dens'] -
+                               np.log10(3.08e18)) - abundance) < tolerance)
             OK = OKtem * OKopr * OKabund
 
             tex1x = radtab['Tex_low'][OK]

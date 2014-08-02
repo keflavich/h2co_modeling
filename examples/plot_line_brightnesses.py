@@ -90,7 +90,7 @@ for sigma in [0.01,0.5,1.0]:
         pl.ylabel("$\\tau_{obs}(2-2)$")
         pl.legend(loc='best')
 
-        pl.figure(3)
+        fig = pl.figure(3)
         pl.subplot(2,1,ii+1)
         pl.title("$T_{{BG}} = {0},{1}$".format(tbg1,tbg2))
         tlr = vtline_ratio(dens, sigma=sigma, tbg1=tbg1, tbg2=tbg2,
@@ -112,7 +112,10 @@ for sigma in [0.01,0.5,1.0]:
         #pl.ylim(0,25)
         pl.xlim(1,6)
         pl.xlabel("log($n(H_2) [\mathrm{cm}^{-3}]$")
-        pl.ylabel("Ratio $\\tau_{obs}(1-1) / \\tau_{obs}(2-2)$")
+        #pl.ylabel("Ratio $\\tau_{obs}(1-1) / \\tau_{obs}(2-2)$")
+        fig.text(0.5, 0.04, "Ratio $\\tau_{obs}(1-1) / \\tau_{obs}(2-2)$",
+                 ha='center', va='center')
+        
         pl.legend(loc='best')
 
 
