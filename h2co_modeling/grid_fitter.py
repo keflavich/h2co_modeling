@@ -14,7 +14,7 @@ def grid_getmatch(parval, parerr, pargrid, chi2_thresh=1):
     match = chi2 < chi2_thresh
     indbestfit = np.argmin(chi2)
 
-    return match, chi2, indbestfit
+    return match, indbestfit, chi2
 
 def grid_fitter(parval, parerr, pargrid, parvals, chi2_thresh=1,
                 max_deviation_sigma=2):
@@ -25,7 +25,7 @@ def grid_fitter(parval, parerr, pargrid, parvals, chi2_thresh=1,
     if not pargrid.shape == parvals.shape:
         raise TypeError("parvals must be the 'x-axis' of pargrid and must have same shape")
 
-    match, chi2, indbestfit = grid_getmatch(parval, parerr, pargrid,
+    match, indbestfit, chi2 = grid_getmatch(parval, parerr, pargrid,
                                             chi2_thresh=chi2_thresh)
 
     sigma1mean = parvals[match].mean()
@@ -69,8 +69,20 @@ def grid_2p_getmatch(par1, epar1, pargrid1, par2, epar2, pargrid2,
 
     match = (chi2_1 < chi2_thresh) & (chi2_2 < chi2_thresh)
 
-    if match.sum() > 0:
-        indbest = np.argmin(np.ma.masked_where(True-match, chi2b))
+    indbest,match = getmatch(chi2b, match, chi2_thresh=chi2_thresh)
+
+    if np.count_nonzero(match) == 0:
+        log.warn("Parameters: {par1},{par2},{epar1},{epar2}".format(par1=par1,
+                                                                    par2=par2,
+                                                                    epar1=epar1,
+                                                                    epar2=epar2))
+
+    return match,indbest,chi2b
+
+def getmatch(chi2b, match, chi2_thresh=1):
+
+    if np.count_nonzero(match) > 0:
+        indbest = np.argmin(np.ma.masked_where(~match, chi2b))
         chi2best = chi2b.flat[indbest]
     else:
         warnings.warn("No direct matches were found.  Returning closest match.")
@@ -78,5 +90,8 @@ def grid_2p_getmatch(par1, epar1, pargrid1, par2, epar2, pargrid2,
         chi2best = chi2b.flat[indbest]
         delta_chi2b = chi2b-chi2b.min()
         match = delta_chi2b < chi2_thresh
+        if np.count_nonzero(match) == 0:
+            warnings.warn("**NO MATCHES AT ALL**: this data is inconsistent "
+                          "with *all* models.")
 
-    return match,indbest,chi2b
+    return indbest,match
