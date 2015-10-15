@@ -26,7 +26,9 @@ def gpath(fn, gridpath='/Users/adam/work/h2co/radex/thermom/'):
 
 class paraH2COmodel(object):
 
-    def __init__(self, tbackground=2.73, gridsize=[250.,101.,100.], gpath=gpath):
+    def __init__(self, tbackground=2.73, gridsize=[250.,101.,100.],
+                 gpath=gpath, lines=['303','321','322','404','422','423'],
+                 fname_template='fjdu_pH2CO_{line}_{textau}_5kms.fits'):
         """
         Initialize the model fitter.
 
@@ -41,13 +43,18 @@ class paraH2COmodel(object):
         gpath : function
             The path to the model files.  You need to construct these as FITS
             cubes with an appropriate header.
+        lines : list
+            List of string names of the lines to be put into the fname_template
+        fname_template : str
+            Filename template.   Must have input locations for the line name
+            {line} and tex or tau {textau}
         """
         t0 = time.time()
 
-        for line in ProgressBar(['303','321','322','404','422','423']):
-            if os.path.exists(gpath('fjdu_pH2CO_{0}_tex_5kms.fits'.format(line))):
-                self.__dict__['texgrid{0}'.format(line)] = fits.getdata(gpath('fjdu_pH2CO_{0}_tex_5kms.fits'.format(line)))
-                self.__dict__['taugrid{0}'.format(line)] = fits.getdata(gpath('fjdu_pH2CO_{0}_tau_5kms.fits'.format(line)))
+        for line in ProgressBar(lines):
+            if os.path.exists(gpath(fname_template.format(line=line, textau='tex'))):
+                self.__dict__['texgrid{0}'.format(line)] = fits.getdata(gpath(fname_template.format(line=line, textau='tex')))
+                self.__dict__['taugrid{0}'.format(line)] = fits.getdata(gpath(fname_template.format(line=line, textau='tau')))
             else:
                 print("Did not find {0}".format(gpath('fjdu_pH2CO_{0}_tex_5kms.fits'.format(line))))
 
