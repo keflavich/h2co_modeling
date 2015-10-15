@@ -356,7 +356,7 @@ class paraH2COmodel(object):
 
         if mindens is not None:
             self.chi2_dens = (((self.densityarr - mindens)/emindens)**2
-                              * (self.densityarr < (mindens-emindens)))
+                              * (self.densityarr < (mindens)))
         else:
             self.chi2_dens = 0
 
@@ -443,8 +443,8 @@ class paraH2COmodel(object):
                         levels=self.chi2_r321303.min()+levels, alpha=0.5)
             pl.contour(xax, yax, self.chi2.min(axis=axis),
                        levels=self.chi2.min()+levels)
-            pl.plot(xmaxlike, ymaxlike, 'o', facecolor='none', edgecolor='k')
-            pl.plot(xexpect, yexpect, 'x', facecolor='none', edgecolor='k')
+            pl.plot(xmaxlike, ymaxlike, 'o', markerfacecolor='none', markeredgecolor='k')
+            pl.plot(xexpect, yexpect, 'x', markerfacecolor='none', markeredgecolor='k')
             if self.chi2_r321322:
                 pl.contour(xax, yax, self.chi2_r321322.min(axis=axis),
                            levels=self.chi2_r321322.min()+levels,
@@ -457,8 +457,8 @@ class paraH2COmodel(object):
                         levels=self.chi2_r404303.min()+levels, alpha=0.5)
             pl.contour(xax, yax, self.chi2.min(axis=axis),
                        levels=self.chi2.min()+levels)
-            pl.plot(xmaxlike, ymaxlike, 'o', facecolor='none', edgecolor='k')
-            pl.plot(xexpect, yexpect, 'x', facecolor='none', edgecolor='k')
+            pl.plot(xmaxlike, ymaxlike, 'o', markerfacecolor='none', markeredgecolor='k')
+            pl.plot(xexpect, yexpect, 'x', markerfacecolor='none', markeredgecolor='k')
             pl.title("Ratio $4_{0,4}-3_{2,2}/3_{0,3}-2_{0,2}$")
 
         if self.chi2_r422404 is not 0:
@@ -467,8 +467,8 @@ class paraH2COmodel(object):
                         levels=self.chi2_r422404.min()+levels, alpha=0.5)
             pl.contour(xax, yax, self.chi2.min(axis=axis),
                        levels=self.chi2.min()+levels)
-            pl.plot(xmaxlike, ymaxlike, 'o', facecolor='none', edgecolor='k')
-            pl.plot(xexpect, yexpect, 'x', facecolor='none', edgecolor='k')
+            pl.plot(xmaxlike, ymaxlike, 'o', markerfacecolor='none', markeredgecolor='k')
+            pl.plot(xexpect, yexpect, 'x', markerfacecolor='none', markeredgecolor='k')
             if self.chi2_r423404 is not 0:
                 pl.contour(xax, yax, self.chi2_r423404.min(axis=axis),
                            levels=self.chi2_r423404.min()+levels,
@@ -481,8 +481,8 @@ class paraH2COmodel(object):
                         levels=self.chi2_X.min()+levels, alpha=0.5)
         pl.contour(xax, yax, self.chi2.min(axis=axis),
                    levels=self.chi2.min()+levels)
-        pl.plot(xmaxlike, ymaxlike, 'o', facecolor='none', edgecolor='k')
-        pl.plot(xexpect, yexpect, 'x', facecolor='none', edgecolor='k')
+        pl.plot(xmaxlike, ymaxlike, 'o', markerfacecolor='none', markeredgecolor='k')
+        pl.plot(xexpect, yexpect, 'x', markerfacecolor='none', markeredgecolor='k')
         pl.title("log(p-H$_2$CO/H$_2$) "
                  "$= {0:0.1f}\pm{1:0.1f}$".format(self.logabundance,
                                                   self.elogabundance))
@@ -493,8 +493,8 @@ class paraH2COmodel(object):
                         levels=self.chi2_h2.min()+levels, alpha=0.5)
         pl.contour(xax, yax, self.chi2.min(axis=axis),
                    levels=self.chi2.min()+levels)
-        pl.plot(xmaxlike, ymaxlike, 'o', facecolor='none', edgecolor='k')
-        pl.plot(xexpect, yexpect, 'x', facecolor='none', edgecolor='k')
+        pl.plot(xmaxlike, ymaxlike, 'o', markerfacecolor='none', markeredgecolor='k')
+        pl.plot(xexpect, yexpect, 'x', markerfacecolor='none', markeredgecolor='k')
         pl.title("Total log$(N(\\mathrm{{H}}_2))$ ")
         #         "= {0:0.1f}\pm{1:0.1f}$".format(self.logh2column,
         #                                         self.elogh2column))
@@ -510,8 +510,8 @@ class paraH2COmodel(object):
         if hasattr(self, 'taline303'):
             pl.contour(xax, yax, (self.tline303 < 10*self.taline303).max(axis=axis),
                        levels=[0.5], colors='k')
-        pl.plot(xmaxlike, ymaxlike, 'o', facecolor='none', edgecolor='k')
-        pl.plot(xexpect, yexpect, 'x', facecolor='none', edgecolor='k')
+        pl.plot(xmaxlike, ymaxlike, 'o', markerfacecolor='none', markeredgecolor='k')
+        pl.plot(xexpect, yexpect, 'x', markerfacecolor='none', markeredgecolor='k')
         #pl.contour(xax, yax, (tline303 < 100*par1).max(axis=axis), levels=[0.5], colors='k')
         #pl.contour(xax, yax, (tline321 < 10*par2).max(axis=axis), levels=[0.5], colors='k', linestyles='--')
         #pl.contour(xax, yax, (tline321 < 100*par2).max(axis=axis), levels=[0.5], colors='k', linestyles='--')
