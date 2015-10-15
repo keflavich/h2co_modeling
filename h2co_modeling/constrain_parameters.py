@@ -13,6 +13,7 @@ from astropy import log
 from scipy import stats
 import pylab as pl
 from astropy.io import fits
+from astropy.utils.console import ProgressBar
 
 from h2co_modeling import grid_fitter
 
@@ -42,19 +43,28 @@ class paraH2COmodel(object):
             cubes with an appropriate header.
         """
         t0 = time.time()
-        self.texgrid303 = texgrid303 = fits.getdata(gpath('fjdu_pH2CO_303_tex_5kms.fits'))
-        self.taugrid303 = taugrid303 = fits.getdata(gpath('fjdu_pH2CO_303_tau_5kms.fits'))
-        self.texgrid321 = texgrid321 = fits.getdata(gpath('fjdu_pH2CO_321_tex_5kms.fits'))
-        self.taugrid321 = taugrid321 = fits.getdata(gpath('fjdu_pH2CO_321_tau_5kms.fits'))
-        self.texgrid322 = texgrid322 = fits.getdata(gpath('fjdu_pH2CO_322_tex_5kms.fits'))
-        self.taugrid322 = taugrid322 = fits.getdata(gpath('fjdu_pH2CO_322_tau_5kms.fits'))
-        self.texgrid404 = texgrid404 = fits.getdata(gpath('fjdu_pH2CO_404_tex_5kms.fits'))
-        self.taugrid404 = taugrid404 = fits.getdata(gpath('fjdu_pH2CO_404_tau_5kms.fits'))
-        self.texgrid422 = texgrid422 = fits.getdata(gpath('fjdu_pH2CO_422_tex_5kms.fits'))
-        self.taugrid422 = taugrid422 = fits.getdata(gpath('fjdu_pH2CO_422_tau_5kms.fits'))
-        self.texgrid423 = texgrid423 = fits.getdata(gpath('fjdu_pH2CO_423_tex_5kms.fits'))
-        self.taugrid423 = taugrid423 = fits.getdata(gpath('fjdu_pH2CO_423_tau_5kms.fits'))
-        self.hdr = hdr = hdrb = fits.getheader(gpath('fjdu_pH2CO_303_tex_5kms.fits'))
+
+        for line in ProgressBar(['303','321','322','404','422','423']):
+            if os.path.exists(gpath('fjdu_pH2CO_{0}_tex_5kms.fits'.format(line))):
+                self.__dict__['texgrid{0}'.format(line)] = fits.getdata(gpath('fjdu_pH2CO_{0}_tex_5kms.fits'.format(line)))
+                self.__dict__['taugrid{0}'.format(line)] = fits.getdata(gpath('fjdu_pH2CO_{0}_tau_5kms.fits'.format(line)))
+            else:
+                print("Did not find {0}".format(gpath('fjdu_pH2CO_{0}_tex_5kms.fits'.format(line))))
+
+
+        #self.texgrid303 = texgrid303 = fits.getdata(gpath('fjdu_pH2CO_303_tex_5kms.fits'))
+        #self.taugrid303 = taugrid303 = fits.getdata(gpath('fjdu_pH2CO_303_tau_5kms.fits'))
+        #self.texgrid321 = texgrid321 = fits.getdata(gpath('fjdu_pH2CO_321_tex_5kms.fits'))
+        #self.taugrid321 = taugrid321 = fits.getdata(gpath('fjdu_pH2CO_321_tau_5kms.fits'))
+        #self.texgrid322 = texgrid322 = fits.getdata(gpath('fjdu_pH2CO_322_tex_5kms.fits'))
+        #self.taugrid322 = taugrid322 = fits.getdata(gpath('fjdu_pH2CO_322_tau_5kms.fits'))
+        #self.texgrid404 = texgrid404 = fits.getdata(gpath('fjdu_pH2CO_404_tex_5kms.fits'))
+        #self.taugrid404 = taugrid404 = fits.getdata(gpath('fjdu_pH2CO_404_tau_5kms.fits'))
+        #self.texgrid422 = texgrid422 = fits.getdata(gpath('fjdu_pH2CO_422_tex_5kms.fits'))
+        #self.taugrid422 = taugrid422 = fits.getdata(gpath('fjdu_pH2CO_422_tau_5kms.fits'))
+        #self.texgrid423 = texgrid423 = fits.getdata(gpath('fjdu_pH2CO_423_tex_5kms.fits'))
+        #self.taugrid423 = taugrid423 = fits.getdata(gpath('fjdu_pH2CO_423_tau_5kms.fits'))
+        self.hdr = fits.getheader(gpath('fjdu_pH2CO_303_tex_5kms.fits'))
 
         t1 = time.time()
         log.debug("Loading grids took {0:0.1f} seconds".format(t1-t0))
