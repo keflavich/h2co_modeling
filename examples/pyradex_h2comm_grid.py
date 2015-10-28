@@ -6,6 +6,7 @@ Used in the apex_h2co_mm project
 
 Grid shape is [Temperature, Density, Column Density]
 """
+from __future__ import print_function
 import pyradex
 import pyradex.fjdu
 import numpy as np
@@ -183,7 +184,7 @@ if __name__ == "__main__":
                                                               dv='5kms')
         ff.writeto(gpath(outfile),
                    clobber=True)
-        print outfile
+        print(outfile)
 
     ff = makefits(fpars['fluxgrid_321']/fpars['fluxgrid_303'], 'ratio',
                   densities=densities, temperatures=temperatures,
@@ -204,7 +205,7 @@ if __name__ == "__main__":
                                                           dv='5kms')
         ff.writeto(gpath(outfile),
                    clobber=True)
-        print outfile
+        print(outfile)
 
     ff = makefits(pars['fluxgrid_321']/pars['fluxgrid_303'], 'ratio',
              densities=densities, temperatures=temperatures, columns=columns)
