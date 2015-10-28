@@ -4,9 +4,9 @@ optimization procedures.
 """
 
 import numpy as np
-import hopkins_pdf
-import turbulent_pdfs
-from turbulent_pdfs import lognormal_massweighted
+from . import hopkins_pdf
+from . import turbulent_pdfs
+from .turbulent_pdfs import lognormal_massweighted
 
 try:
     from agpy import readcol

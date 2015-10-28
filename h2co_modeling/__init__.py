@@ -1,1 +1,1 @@
-from smoothtau_models import SmoothtauModels
+from .smoothtau_models import SmoothtauModels
