@@ -58,7 +58,7 @@ def grid_2p_getmatch(par1, epar1, pargrid1, par2, epar2, pargrid2,
                      chi2_thresh=1):
     if (epar1 < 0) or (epar2 < 0):
         raise ValueError("Error must be positive")
-    if not all([np.isscalar(p) for p in par1, epar1, par2, epar2]):
+    if not all([np.isscalar(p) for p in (par1, epar1, par2, epar2)]):
         raise TypeError("parval and parerr must be scalar")
     if not pargrid1.shape == pargrid2.shape:
         raise TypeError("parameter grids must have same shape")
