@@ -183,18 +183,24 @@ class paraH2COmodel(object):
             match,indbest,chi2r = grid_fitter.grid_getmatch(ratio, eratio,
                                                             self.modelratio_404_303)
             return chi2r
+        else:
+            return 0
 
     def grid_getmatch_422to404(self, ratio, eratio):
         if hasattr(self, 'modelratio_422_404'):
             match,indbest,chi2r = grid_fitter.grid_getmatch(ratio, eratio,
                                                             self.modelratio_422_404)
             return chi2r
+        else:
+            return 0
 
     def grid_getmatch_423to404(self, ratio, eratio):
         if hasattr(self, 'modelratio_423_404'):
             match,indbest,chi2r = grid_fitter.grid_getmatch(ratio, eratio,
                                                             self.modelratio_423_404)
             return chi2r
+        else:
+            return 0
 
     def grid_getmatch_322to321(self, ratio, eratio):
         match,indbest,chi2r = grid_fitter.grid_getmatch(ratio, eratio,
