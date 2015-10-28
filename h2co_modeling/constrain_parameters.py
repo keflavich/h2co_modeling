@@ -24,6 +24,14 @@ short_mapping = {'dens': 'density',
                  'col': 'column',
                  'tem': 'temperature'}
 
+chi2_mapping = {'X': 'Abundance',
+                'ff1': "Filling Factor $3_{0,3}-2_{0,2}$",
+                'ff2': "Filling Factor $3_{2,1}-2_{2,0}$",
+                'r321303': "Ratio $3_{0,3}-2_{0,2}$ / $3_{2,1}-2_{2,0}$",
+                'dens': "Density $n(H_2)$ cm$^{-3}$",
+                'h2': "Column $N(H_2)$ cm$^{-2}$",
+               }
+
 def gpath(fn, gridpath='/Users/adam/work/h2co/radex/thermom/'):
     return os.path.join(gridpath, fn)
 
