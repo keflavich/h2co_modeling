@@ -4,14 +4,17 @@ plus whatever other constraints are available
 """
 import inspect
 import time
+import collections
+import warnings
 import os
 
 import numpy as np
 from scipy.ndimage.interpolation import map_coordinates
+from scipy import stats
 from astropy import units as u
 from astropy import log
-from scipy import stats
 import pylab as pl
+import matplotlib
 from astropy.io import fits
 from astropy.utils.console import ProgressBar
 
@@ -54,11 +57,16 @@ class paraH2COmodel(object):
         """
         t0 = time.time()
 
+        print("Loading grids...")
         for line in ProgressBar(lines):
             if os.path.exists(gpath(fname_template.format(line=line, textau='tex'))):
-                self.__dict__['texgrid{0}'.format(line)] = fits.getdata(gpath(fname_template.format(line=line, textau='tex')))
-                self.__dict__['taugrid{0}'.format(line)] = fits.getdata(gpath(fname_template.format(line=line, textau='tau')))
-                print("Found and loaded file {0}".format(gpath('fjdu_pH2CO_{0}_tex_5kms.fits'.format(line))))
+                setattr(self, 'texgrid{0}'.format(line),
+                        fits.getdata(gpath(fname_template.format(line=line,
+                                                                 textau='tex'))))
+                setattr(self, 'taugrid{0}'.format(line),
+                        fits.getdata(gpath(fname_template.format(line=line,
+                                                                 textau='tau'))))
+                #print("Found and loaded file {0}".format(gpath('fjdu_pH2CO_{0}_tex_5kms.fits'.format(line))))
             else:
                 print("Did not find {0}".format(gpath('fjdu_pH2CO_{0}_tex_5kms.fits'.format(line))))
 
@@ -94,25 +102,13 @@ class paraH2COmodel(object):
                                                      for x,us in zip(self.tline303a.shape,
                                                                      upsample_factor)],
                                                    dtype='float')
-        self.tline303 = map_coordinates(self.tline303a,
-                                   upsinds/upsample_factor[:,None,None,None],
-                                   mode='nearest')
-        self.tline321 = map_coordinates(self.tline321a,
-                                   upsinds/upsample_factor[:,None,None,None],
-                                   mode='nearest')
-        self.tline322 = map_coordinates(self.tline322a,
-                                   upsinds/upsample_factor[:,None,None,None],
-                                   mode='nearest')
-        if hasattr(self, 'tline404a'):
-            self.tline404 = map_coordinates(self.tline404a,
-                                       upsinds/upsample_factor[:,None,None,None],
-                                       mode='nearest')
-            self.tline422 = map_coordinates(self.tline422a,
-                                       upsinds/upsample_factor[:,None,None,None],
-                                       mode='nearest')
-            self.tline423 = map_coordinates(self.tline423a,
-                                       upsinds/upsample_factor[:,None,None,None],
-                                       mode='nearest')
+        print("Upsampling grids...")
+        for line in ProgressBar(lines):
+            if hasattr(self, 'tline{0}a'.format(line)):
+                setattr(self, 'tline{0}'.format(line),
+                        map_coordinates(getattr(self, 'tline{0}a'.format(line)),
+                                        upsinds/upsample_factor[:,None,None,None],
+                                        mode='nearest'))
 
     
         self.tline = {303: self.tline303,
@@ -206,6 +202,7 @@ class paraH2COmodel(object):
     def chi2(self, value):
         self._chi2 = value
         self._likelihood = np.exp(-value/2)
+        self._likelihood /= self._likelihood.sum()
 
     @property
     def likelihood(self):
@@ -398,32 +395,53 @@ class paraH2COmodel(object):
                      self.chi2_r404303 + self.chi2_r423404 + self.chi2_r422404)
 
     def get_parconstraints(self,
-                           chi2level=stats.chi2.ppf(stats.norm.cdf(1)-stats.norm.cdf(-1), 3)):
+                           nsigma=1):
         """
         If parameter constraints have been set with set_constraints or
         set_constraints_fromrow
 
         Parameters
         ----------
-        chi2level : float
-            The maximum Delta-chi^2 value to include: this will be used to
-            determine the min/max 1-sigma errorbars
+        nsigma : float
+            The number of sigmas to go out to when determining errors
         """
         if not hasattr(self, 'chi2'):
             raise AttributeError("Run set_constraints first")
 
         row = {}
 
-        indbest = np.argmin(self.chi2)
-        deltachi2b = (self.chi2-self.chi2.min())
-        for parname,pararr in zip(('temperature','column','density'),
-                                  (self.temparr,self.columnarr,self.densityarr)):
+        inds = np.argsort(self.likelihood.flat)
+        cdf = np.cumsum(self.likelihood.flat[inds])
+        frac_above = (stats.norm.cdf(nsigma)-stats.norm.cdf(-nsigma))
+        cdfmin = np.argmin(np.abs(cdf - (1-frac_above)))
+        sigma_like = self.likelihood.flat[inds][cdfmin]
+
+        indbest = np.argmax(self.likelihood)
+        # Compute the *marginal* 1-sigma regions
+        for parname,pararr,ax in zip(('temperature','column','density'),
+                                     (self.temparr,self.columnarr,self.densityarr),
+                                     (0,2,1)):
             row['{0}_chi2'.format(parname)] = pararr.flat[indbest]
-            row['E({0})'.format(parname)] = (pararr*self.likelihood).sum() / self.likelihood.sum()
-            OK = deltachi2b<chi2level
-            if np.count_nonzero(OK) > 0:
-                row['{0:1.1s}min1sig_chi2'.format(parname)] = pararr[OK].min()
-                row['{0:1.1s}max1sig_chi2'.format(parname)] = pararr[OK].max()
+            row['expected_{0}'.format(parname)] = ((pararr*self.likelihood).sum() / self.likelihood.sum())
+
+            axes = tuple(x for x in (0,1,2) if x != ax) 
+            like = self.likelihood.sum(axis=axes)
+            cdf_inds = np.argsort(like)
+            ppf = 1-like[cdf_inds].cumsum()
+            cutoff_like = like[cdf_inds[np.argmin(np.abs(ppf-frac_above))]]
+            selection = like > cutoff_like
+
+            slc = [slice(None) if x==ax else 0 for x in (0,1,2)]
+            pararr = pararr[slc]
+
+            if np.abs(like[selection].sum() - frac_above) > 0.05:
+                # we want the sum of the likelihood to be right!
+                #import ipdb; ipdb.set_trace()
+                warnings.warn("Likelihood is not self-consistent.")
+
+            if np.count_nonzero(selection) > 0:
+                row['{0:1.1s}min1sig_chi2'.format(parname)] = pararr[selection].min()
+                row['{0:1.1s}max1sig_chi2'.format(parname)] = pararr[selection].max()
             else:
                 row['{0:1.1s}min1sig_chi2'.format(parname)] = np.nan
                 row['{0:1.1s}max1sig_chi2'.format(parname)] = np.nan
@@ -443,23 +461,170 @@ class paraH2COmodel(object):
         else:
             return self._parconstraints
 
-    def parplot(self, par1='dens', par2='col', nlevs=5, levels=None):
+    def parplot_J32(self, par1='col', par2='dens', nlevs=5, levels=None,
+                    colors=[(0.5,0,0), (0.75,0,0), (1.0,0,0), (1.0,0.25,0), (0.75,0.5,0)],
+                    colorsf=[0.0, 0.33, 0.66, 1.0, 'w']):
+
+        cdict = {x:   [(0.0, 0.0, 0.0),
+                       (1.0, 1.0, 1.0)]
+                 for x in ('red','green','blue')}
+        cdict['blue'] = [(0.0, 1., 1.), (1.0, 1.0, 1.0)]
+        cm = matplotlib.colors.LinearSegmentedColormap('mycm', cdict)
+        colorsf = [cm(float(ii)) if isinstance(ii, (float,int))
+                   else ii
+                   for ii in colorsf]
 
         xax = self.axes[par1]
         yax = self.axes[par2]
         xlabel = self.labels[par1]
         ylabel = self.labels[par2]
-        axis = {('col','dens'): 0,
-                ('dens','tem'): 2,
-                ('col','tem'): 1}[(par1,par2)]
+        amapping = {('col','dens'): 0,
+                    ('dens','tem'): 2,
+                    ('col','tem'): 1}
+        if (par1,par2) in amapping:
+            axis = amapping[(par1,par2)]
+            swaps = (0,0)
+        elif (par2,par1) in amapping:
+            axis = amapping[(par2,par1)]
+            swaps = (0,1)
 
         if levels is None:
-            levels = np.arange(nlevs)
+            levels = ([0]+[(stats.norm.cdf(ii)-stats.norm.cdf(-ii))
+                           for ii in range(1,nlevs)]+[1])
 
         xmaxlike = self.parconstraints['{0}_chi2'.format(short_mapping[par1])]
         ymaxlike = self.parconstraints['{0}_chi2'.format(short_mapping[par2])]
-        xexpect = self.parconstraints['E({0})'.format(short_mapping[par1])]
-        yexpect = self.parconstraints['E({0})'.format(short_mapping[par2])]
+        xexpect = self.parconstraints['expected_{0}'.format(short_mapping[par1])]
+        yexpect = self.parconstraints['expected_{0}'.format(short_mapping[par2])]
+
+        fig = pl.gcf()
+        fig.clf()
+        ax1 = pl.subplot(2,2,1)
+        if 'chi2_r321303' in self.individual_likelihoods:
+            like = (self.individual_likelihoods['chi2_r321303'])
+            pl.contourf(xax, yax, cdf_of_like(like.sum(axis=axis)).swapaxes(*swaps),
+                        levels=levels, alpha=0.5, zorder=-5, colors=colorsf)
+        pl.contour(xax, yax,
+                   cdf_of_like(self.likelihood.sum(axis=axis)).swapaxes(*swaps),
+                   levels=levels, colors=colors, zorder=10)
+        pl.plot(xmaxlike, ymaxlike, 'o', markerfacecolor='none', markeredgecolor='k')
+        pl.plot(xexpect, yexpect, 'x', markerfacecolor='none', markeredgecolor='k')
+        if self.chi2_r321322 is not 0:
+            like = cdf_of_like(self.individual_likelihoods['chi2_r321322'])
+            pl.contour(xax, yax, like.sum(axis=axis).swapaxes(*swaps),
+                       levels=levels,
+                       cmap=pl.cm.bone)
+        pl.title("Ratio $3_{0,3}-2_{0,2}/3_{2,1}-2_{2,0}$")
+
+        ax4 = pl.subplot(2,2,2)
+        if hasattr(self.chi2_X, 'size'):
+            like = self.individual_likelihoods['chi2_X']
+            pl.contourf(xax, yax, cdf_of_like(like.sum(axis=axis)).swapaxes(*swaps),
+                        levels=levels, alpha=0.5, zorder=-5, colors=colorsf)
+        pl.contour(xax, yax,
+                   cdf_of_like(self.likelihood.sum(axis=axis)).swapaxes(*swaps),
+                   levels=levels, colors=colors, zorder=10)
+        pl.plot(xmaxlike, ymaxlike, 'o', markerfacecolor='none', markeredgecolor='k')
+        pl.plot(xexpect, yexpect, 'x', markerfacecolor='none', markeredgecolor='k')
+        pl.title("log(p-H$_2$CO/H$_2$) "
+                 "$= {0:0.1f}\pm{1:0.1f}$".format(self.logabundance,
+                                                  self.elogabundance))
+
+        ax3 = pl.subplot(2,2,3)
+        if hasattr(self.chi2_h2, 'size'):
+            like = (self.individual_likelihoods['chi2_h2'])
+            pl.contourf(xax, yax, cdf_of_like(like.sum(axis=axis)).swapaxes(*swaps),
+                        levels=levels, alpha=0.5, zorder=-5, colors=colorsf)
+        pl.contour(xax, yax,
+                   cdf_of_like(self.likelihood.sum(axis=axis)).swapaxes(*swaps),
+                   levels=levels, colors=colors, zorder=10)
+        pl.plot(xmaxlike, ymaxlike, 'o', markerfacecolor='none', markeredgecolor='k')
+        pl.plot(xexpect, yexpect, 'x', markerfacecolor='none', markeredgecolor='k')
+        pl.title("Total log$(N(\\mathrm{{H}}_2))$ ")
+        #         "= {0:0.1f}\pm{1:0.1f}$".format(self.logh2column,
+        #                                         self.elogh2column))
+        ax5 = pl.subplot(2,2,4)
+        if hasattr(self.chi2_ff1, 'size'):
+            cdict = {x:   [(0.0, 0.5, 0.5),
+                           (1.0, 0.0, 0.0)]
+                     for x in ('red','green','blue')}
+            cdict['green'] = [(0, 0.5, 0.5), (1,1,1)]
+            cdict['red'] = [(0, 0.5, 0.5), (1,0.7,0.7)]
+            cdict['blue'] = [(0, 0.0, 0.0), (1,0,0)]
+            #cdict['alpha'] = [(0.0, 0.0, 0.0), (1.0, 0.3, 0.3)]
+            darker = matplotlib.colors.LinearSegmentedColormap('darker', cdict)
+            like = (self.individual_likelihoods['chi2_ff1'])
+            plim = cdf_of_like(like.sum(axis=axis)).swapaxes(*swaps)
+            pl.contour(xax, yax, plim, levels=levels,
+                        cmap=darker, zorder=5)
+        if hasattr(self.chi2_dens, 'size'):
+            like = (self.individual_likelihoods['chi2_dens'])
+            pl.contourf(xax, yax, cdf_of_like(like.sum(axis=axis)).swapaxes(*swaps),
+                        levels=levels, alpha=0.5, zorder=-5, colors=colorsf)
+        pl.contour(xax, yax,
+                   cdf_of_like(self.likelihood.sum(axis=axis)).swapaxes(*swaps),
+                   levels=levels, colors=colors, zorder=10)
+        #if hasattr(self, 'taline303'):
+        #    ff1_mask = (self.tline303 < 10*self.taline303)
+        #    pl.contour(xax, yax, ff1_mask.max(axis=axis).swapaxes(*swaps),
+        #               levels=[0.5], colors='k')
+        pl.plot(xmaxlike, ymaxlike, 'o', markerfacecolor='none', markeredgecolor='k')
+        pl.plot(xexpect, yexpect, 'x', markerfacecolor='none', markeredgecolor='k')
+        #pl.contour(xax, yax, (tline303 < 100*par1).max(axis=axis).swapaxes(*swaps), levels=[0.5], colors='k')
+        #pl.contour(xax, yax, (tline321 < 10*par2).max(axis=axis).swapaxes(*swaps), levels=[0.5], colors='k', linestyles='--')
+        #pl.contour(xax, yax, (tline321 < 100*par2).max(axis=axis).swapaxes(*swaps), levels=[0.5], colors='k', linestyles='--')
+        #pl.title("Line Brightness + $ff\leq1$")
+        pl.title("Minimum Density & $ff$")
+        fig.text(0.05, 0.5, ylabel, horizontalalignment='center',
+                verticalalignment='center',
+                rotation='vertical', transform=fig.transFigure)
+        fig.text(0.5, 0.02, xlabel, horizontalalignment='center', transform=fig.transFigure)
+
+
+        if par1 == 'col':
+            for ss in range(1,5):
+                ax = pl.subplot(2,2,ss)
+                ax.xaxis.set_ticks(np.arange(self.carr.min(), self.carr.max()))
+
+        pl.subplots_adjust(wspace=0.25, hspace=0.45)
+
+
+    def parplot_J43(self, par1='col', par2='dens', nlevs=5, levels=None,
+                colors=[(0.5,0,0), (0.75,0,0), (1.0,0,0), (1.0,0.25,0), (0.75,0.5,0)],
+                colorsf=[0.0, 0.33, 0.66, 1.0, 'w']):
+
+        cdict = {x:   [(0.0, 0.0, 0.0),
+                       (1.0, 1.0, 1.0)]
+                 for x in ('red','green','blue')}
+        cdict['blue'] = [(0.0, 1., 1.), (1.0, 1.0, 1.0)]
+        cm = matplotlib.colors.LinearSegmentedColormap('mycm', cdict)
+        colorsf = [cm(float(ii)) if isinstance(ii, (float,int))
+                   else ii
+                   for ii in colorsf]
+
+        xax = self.axes[par1]
+        yax = self.axes[par2]
+        xlabel = self.labels[par1]
+        ylabel = self.labels[par2]
+        amapping = {('col','dens'): 0,
+                    ('dens','tem'): 2,
+                    ('col','tem'): 1}
+        if (par1,par2) in amapping:
+            axis = amapping[(par1,par2)]
+            swaps = (0,0)
+        elif (par2,par1) in amapping:
+            axis = amapping[(par2,par1)]
+            swaps = (0,1)
+
+        if levels is None:
+            levels = ([0]+[(stats.norm.cdf(ii)-stats.norm.cdf(-ii))
+                           for ii in range(1,nlevs)]+[1])
+
+        xmaxlike = self.parconstraints['{0}_chi2'.format(short_mapping[par1])]
+        ymaxlike = self.parconstraints['{0}_chi2'.format(short_mapping[par2])]
+        xexpect = self.parconstraints['expected_{0}'.format(short_mapping[par1])]
+        yexpect = self.parconstraints['expected_{0}'.format(short_mapping[par2])]
+
 
         fig = pl.gcf()
         fig.clf()
@@ -565,3 +730,119 @@ class paraH2COmodel(object):
     def coltemplot(self):
         self.parplot('col','tem')
 
+
+    def parplot1d(self, par='col', levels=None, clf=True,
+                  legend=True, legendfontsize=14):
+
+        xax = self.axes[par]
+        xlabel = self.labels[par]
+        amapping = {'col':(2,(0,1)),
+                    'dens':(1,(0,2)),
+                    'tem':(0,(1,2))}
+        axis,axes = amapping[par]
+
+
+        xmaxlike = self.parconstraints['{0}_chi2'.format(short_mapping[par])]
+        xexpect = self.parconstraints['expected_{0}'.format(short_mapping[par])]
+
+        like = self.likelihood.sum(axis=axes)
+        like /= like.sum()
+        inds_cdf = np.argsort(like)
+        cdf = like[inds_cdf]
+
+        fig = pl.gcf()
+        if clf:
+            fig.clf()
+        ax = fig.gca()
+        ax.plot(xax, like, 'k-', label='Posterior')
+
+        for key in self.individual_likelihoods:
+            if key in ('chi2','_chi2'):
+                continue # already done
+            ilike = self.individual_likelihoods[key].sum(axis=axes)
+            ilike /= ilike.sum()
+            ax.plot(xax, ilike, label=chi2_mapping[key.replace("chi2_","")])
+
+        ax.vlines((xmaxlike,), 0, like.max(), linestyle='--', color='r',
+                  label='Maximum Likelihood')
+
+        ax.vlines((xexpect,), 0, like.max(), linestyle='--', color='b',
+                  label='E[{0}]'.format(xlabel))
+        xexpect_v2 = (like*xax).sum()/like.sum()
+        ax.vlines((xexpect_v2,), 0, like.max(), linestyle='--', color='c',
+                  zorder=-1)
+        print("par:{4} xmaxlike: {0}, xexpect: {1}, xexpect_v2: {2},"
+              "maxlike: {3}, diff:{5}"
+              .format(xmaxlike, xexpect, xexpect_v2, like.max(), par,
+                      xexpect-xmaxlike))
+
+        if levels is not None:
+            if not isinstance(levels, collections.Iterable):
+                levels = [levels]
+            cdf_inds = np.argsort(like)
+            ppf = 1-like[cdf_inds].cumsum()
+            cutoff_likes = [like[cdf_inds[np.argmin(np.abs(ppf-lev))]]
+                            for lev in levels]
+
+            for fillind,cutoff in enumerate(sorted(cutoff_likes)):
+                selection = like > cutoff
+                ax.fill_between(xax[selection], like[selection]*0,
+                                like[selection], alpha=0.1, zorder=fillind-20)
+                if np.abs(like[selection].sum() - levels[0]) > 0.05:
+                    # we want the sum of the likelihood to be right!
+                    #import ipdb; ipdb.set_trace()
+                    warnings.warn("Likelihood is not self-consistent.")
+
+
+
+        if legend:
+            ax.legend(loc='best', fontsize=legendfontsize)
+        ax.set_xlabel(xlabel)
+        ax.set_ylabel('$P(${0}$)$'.format(xlabel))
+
+    def parplot1d_all(self, legendfontsize=14, **kwargs):
+
+        fig = pl.gcf()
+        if not all(fig.get_size_inches() == [12,16]):
+            num = fig.number
+            pl.close(fig)
+            fig = pl.figure(num, figsize=(12,16))
+
+        for axindex,par in enumerate(('col','dens','tem')):
+            ax = fig.add_subplot(3,1,axindex+1)
+            self.parplot1d(par=par, clf=False, legend=False, **kwargs)
+
+            box = ax.get_position()
+            ax.set_position([box.x0, box.y0, box.width * 0.8, box.height])
+
+            if axindex == 1:
+                ax.legend(loc='center left', bbox_to_anchor=(1, 0.5),
+                          fontsize=legendfontsize)
+
+        pl.subplots_adjust(hspace=0.45)
+
+    @property
+    def individual_likelihoods(self):
+        if hasattr(self, '_likelihoods') and self._likelihoods is not None:
+            return self._likelihoods
+        else:
+            self._likelihoods = {}
+            for key in self.__dict__:
+                if 'chi2' in key and getattr(self,key) is not 0:
+                    self._likelihoods[key] = np.exp(-getattr(self,key)/2.)
+                    self._likelihoods[key] /= self._likelihoods[key].sum()
+            return self._likelihoods
+
+def cdf_of_like(like):
+    """
+    There is probably an easier way to do this, BUT it works:
+    Turn a likelihood image into a CDF image
+    """
+    like = like/like.sum()
+    order = np.argsort(like.flat)[::-1]
+    cdf = like.flat[order].cumsum()[np.argsort(order)].reshape(like.shape)
+    cdf[like == like.max()] = 0
+    return cdf
+
+def ppf_of_like(like):
+    return 1-cdf_of_like(like)
