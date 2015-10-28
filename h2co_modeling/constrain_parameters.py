@@ -18,7 +18,8 @@ import matplotlib
 from astropy.io import fits
 from astropy.utils.console import ProgressBar
 
-from h2co_modeling import grid_fitter
+from . import grid_fitter
+from .paraH2COmodel import generic_paraH2COmodel
 
 short_mapping = {'dens': 'density',
                  'col': 'column',
@@ -35,10 +36,11 @@ chi2_mapping = {'X': 'Abundance',
 def gpath(fn, gridpath='/Users/adam/work/h2co/radex/thermom/'):
     return os.path.join(gridpath, fn)
 
-class paraH2COmodel(object):
+class paraH2COmodel(generic_paraH2COmodel):
 
     def __init__(self, tbackground=2.73, gridsize=[250.,101.,100.],
                  gpath=gpath, lines=['303','321','322','404','422','423'],
+                 grid_linewidth=5.0,
                  fname_template='fjdu_pH2CO_{line}_{textau}_5kms.fits',
                  gridpath='/Users/adam/work/h2co/radex/thermom/'):
         """
@@ -59,6 +61,8 @@ class paraH2COmodel(object):
             The path that will be passed to the 'gpath' function
         lines : list
             List of string names of the lines to be put into the fname_template
+        grid_linewidth : float
+            The line width used to compute the model grid
         fname_template : str
             Filename template.   Must have input locations for the line name
             {line} and tex or tau {textau}
@@ -82,6 +86,7 @@ class paraH2COmodel(object):
         #self.texgrid303 = texgrid303 = fits.getdata(gpath('fjdu_pH2CO_303_tex_5kms.fits'))
 
         self.hdr = fits.getheader(gpath('fjdu_pH2CO_303_tex_5kms.fits'))
+        self.grid_linewidth = grid_linewidth
 
         t1 = time.time()
         log.debug("Loading grids took {0:0.1f} seconds".format(t1-t0))
@@ -167,83 +172,6 @@ class paraH2COmodel(object):
         t2 = time.time()
         log.debug("Grid initialization took {0:0.1f} seconds total,"
                   " {1:0.1f} since loading grids.".format(t2-t0,t2-t1))
-
-    def grid_getmatch_321to303(self, ratio, eratio):
-        match,indbest,chi2r = grid_fitter.grid_getmatch(ratio, eratio,
-                                                        self.modelratio1)
-        return chi2r
-
-    def grid_getmatch_404to303(self, ratio, eratio):
-        if hasattr(self, 'modelratio_404_303'):
-            match,indbest,chi2r = grid_fitter.grid_getmatch(ratio, eratio,
-                                                            self.modelratio_404_303)
-            return chi2r
-        else:
-            return 0
-
-    def grid_getmatch_422to404(self, ratio, eratio):
-        if hasattr(self, 'modelratio_422_404'):
-            match,indbest,chi2r = grid_fitter.grid_getmatch(ratio, eratio,
-                                                            self.modelratio_422_404)
-            return chi2r
-        else:
-            return 0
-
-    def grid_getmatch_423to404(self, ratio, eratio):
-        if hasattr(self, 'modelratio_423_404'):
-            match,indbest,chi2r = grid_fitter.grid_getmatch(ratio, eratio,
-                                                            self.modelratio_423_404)
-            return chi2r
-        else:
-            return 0
-
-    def grid_getmatch_322to321(self, ratio, eratio):
-        match,indbest,chi2r = grid_fitter.grid_getmatch(ratio, eratio,
-                                                        self.modelratio2)
-        return chi2r
-
-    @property
-    def chi2(self):
-        return self._chi2
-
-    @chi2.setter
-    def chi2(self, value):
-        self._chi2 = value
-        self._likelihood = np.exp(-value/2)
-        self._likelihood /= self._likelihood.sum()
-
-    @property
-    def likelihood(self):
-        return self._likelihood
-
-    def chi2_fillingfactor(self, tline, etline, lineid):
-        """
-        Return a chi^2 value for each model parameter treating the specified
-        line brightness as a lower limit
-
-        Parameters
-        ----------
-        tline : float
-            The line brightness temperature
-        lineid : int
-            The line id, one of 303,321,322
-        """
-        chi2 = ((self.tline[lineid] - tline)/etline)**2 * (self.tline[lineid] < tline)
-        return chi2
-
-    def chi2_column(self, logh2column, elogh2column, h2coabundance, linewidth):
-
-        h2fromh2co = self.columnarr + np.log10(np.sqrt(np.pi) * linewidth) - h2coabundance
-        chi2_h2 = ((h2fromh2co-logh2column)/elogh2column)**2
-
-        return chi2_h2
-
-    def chi2_abundance(self, logabundance, elogabundance):
-        # Should there be a factor of np.log10(np.sqrt(np.pi) * linewidth) here?
-        # Should linewidth be treated as FWHM instead of sigma, as it presently is?
-        model_logabundance = self.columnarr - np.log10(u.pc.to(u.cm)) - self.densityarr
-        chi2X = ((model_logabundance-logabundance)/elogabundance)**2
-        return chi2X
 
     def list_parameters():
         return ['taline303',  'etaline303', 'taline321',  'etaline321',
@@ -402,72 +330,6 @@ class paraH2COmodel(object):
                      + self.chi2_r321322 + self.chi2_r321303 + self.chi2_dens +
                      self.chi2_r404303 + self.chi2_r423404 + self.chi2_r422404)
 
-    def get_parconstraints(self,
-                           nsigma=1):
-        """
-        If parameter constraints have been set with set_constraints or
-        set_constraints_fromrow
-
-        Parameters
-        ----------
-        nsigma : float
-            The number of sigmas to go out to when determining errors
-        """
-        if not hasattr(self, 'chi2'):
-            raise AttributeError("Run set_constraints first")
-
-        row = {}
-
-        inds = np.argsort(self.likelihood.flat)
-        cdf = np.cumsum(self.likelihood.flat[inds])
-        frac_above = (stats.norm.cdf(nsigma)-stats.norm.cdf(-nsigma))
-        cdfmin = np.argmin(np.abs(cdf - (1-frac_above)))
-        sigma_like = self.likelihood.flat[inds][cdfmin]
-
-        indbest = np.argmax(self.likelihood)
-        # Compute the *marginal* 1-sigma regions
-        for parname,pararr,ax in zip(('temperature','column','density'),
-                                     (self.temparr,self.columnarr,self.densityarr),
-                                     (0,2,1)):
-            row['{0}_chi2'.format(parname)] = pararr.flat[indbest]
-            row['expected_{0}'.format(parname)] = ((pararr*self.likelihood).sum() / self.likelihood.sum())
-
-            axes = tuple(x for x in (0,1,2) if x != ax) 
-            like = self.likelihood.sum(axis=axes)
-            cdf_inds = np.argsort(like)
-            ppf = 1-like[cdf_inds].cumsum()
-            cutoff_like = like[cdf_inds[np.argmin(np.abs(ppf-frac_above))]]
-            selection = like > cutoff_like
-
-            slc = [slice(None) if x==ax else 0 for x in (0,1,2)]
-            pararr = pararr[slc]
-
-            if np.abs(like[selection].sum() - frac_above) > 0.05:
-                # we want the sum of the likelihood to be right!
-                #import ipdb; ipdb.set_trace()
-                warnings.warn("Likelihood is not self-consistent.")
-
-            if np.count_nonzero(selection) > 0:
-                row['{0:1.1s}min1sig_chi2'.format(parname)] = pararr[selection].min()
-                row['{0:1.1s}max1sig_chi2'.format(parname)] = pararr[selection].max()
-            else:
-                row['{0:1.1s}min1sig_chi2'.format(parname)] = np.nan
-                row['{0:1.1s}max1sig_chi2'.format(parname)] = np.nan
-
-        for parname in ('logh2column', 'elogh2column', 'logabundance',
-                        'elogabundance'):
-            row[parname] = getattr(self, parname)
-
-        self._parconstraints = row
-
-        return row
-
-    @property
-    def parconstraints(self):
-        if not hasattr(self,'_parconstraints') or self._parconstraints is None:
-            return self.get_parconstraints()
-        else:
-            return self._parconstraints
 
     def parplot_J32(self, par1='col', par2='dens', nlevs=5, levels=None,
                     colors=[(0.5,0,0), (0.75,0,0), (1.0,0,0), (1.0,0.25,0), (0.75,0.5,0)],
@@ -728,15 +590,6 @@ class paraH2COmodel(object):
                 ax.xaxis.set_ticks(np.arange(self.carr.min(), self.carr.max()))
 
         pl.subplots_adjust(wspace=0.25, hspace=0.45)
-
-    def denstemplot(self):
-        self.parplot('dens','tem')
-
-    def denscolplot(self):
-        self.parplot('col','dens')
-
-    def coltemplot(self):
-        self.parplot('col','tem')
 
 
     def parplot1d(self, par='col', levels=None, clf=True,
