@@ -28,7 +28,8 @@ class paraH2COmodel(object):
 
     def __init__(self, tbackground=2.73, gridsize=[250.,101.,100.],
                  gpath=gpath, lines=['303','321','322','404','422','423'],
-                 fname_template='fjdu_pH2CO_{line}_{textau}_5kms.fits'):
+                 fname_template='fjdu_pH2CO_{line}_{textau}_5kms.fits',
+                 gridpath='/Users/adam/work/h2co/radex/thermom/'):
         """
         Initialize the model fitter.
 
@@ -43,6 +44,8 @@ class paraH2COmodel(object):
         gpath : function
             The path to the model files.  You need to construct these as FITS
             cubes with an appropriate header.
+        gridpath : str
+            The path that will be passed to the 'gpath' function
         lines : list
             List of string names of the lines to be put into the fname_template
         fname_template : str
@@ -83,12 +86,13 @@ class paraH2COmodel(object):
                           (self.texgrid321-self.Tbackground))
         self.tline322a = ((1.0-np.exp(-np.array(self.taugrid322))) *
                           (self.texgrid322-self.Tbackground))
-        self.tline404a = ((1.0-np.exp(-np.array(self.taugrid404))) *
-                          (self.texgrid404-self.Tbackground))
-        self.tline423a = ((1.0-np.exp(-np.array(self.taugrid423))) *
-                          (self.texgrid423-self.Tbackground))
-        self.tline422a = ((1.0-np.exp(-np.array(self.taugrid422))) *
-                          (self.texgrid422-self.Tbackground))
+        if 'tline404a' in self.__dict__:
+            self.tline404a = ((1.0-np.exp(-np.array(self.taugrid404))) *
+                              (self.texgrid404-self.Tbackground))
+            self.tline423a = ((1.0-np.exp(-np.array(self.taugrid423))) *
+                              (self.texgrid423-self.Tbackground))
+            self.tline422a = ((1.0-np.exp(-np.array(self.taugrid422))) *
+                              (self.texgrid422-self.Tbackground))
 
         zinds,yinds,xinds = np.indices(self.tline303a.shape)
         upsample_factor = np.array([gridsize[0]/self.tline303a.shape[0], # temperature
@@ -108,24 +112,28 @@ class paraH2COmodel(object):
         self.tline322 = map_coordinates(self.tline322a,
                                    upsinds/upsample_factor[:,None,None,None],
                                    mode='nearest')
-        self.tline404 = map_coordinates(self.tline404a,
-                                   upsinds/upsample_factor[:,None,None,None],
-                                   mode='nearest')
-        self.tline422 = map_coordinates(self.tline422a,
-                                   upsinds/upsample_factor[:,None,None,None],
-                                   mode='nearest')
-        self.tline423 = map_coordinates(self.tline423a,
-                                   upsinds/upsample_factor[:,None,None,None],
-                                   mode='nearest')
+        if 'tline404a' in self.__dict__:
+            self.tline404 = map_coordinates(self.tline404a,
+                                       upsinds/upsample_factor[:,None,None,None],
+                                       mode='nearest')
+            self.tline422 = map_coordinates(self.tline422a,
+                                       upsinds/upsample_factor[:,None,None,None],
+                                       mode='nearest')
+            self.tline423 = map_coordinates(self.tline423a,
+                                       upsinds/upsample_factor[:,None,None,None],
+                                       mode='nearest')
 
     
         self.tline = {303: self.tline303,
                       321: self.tline321,
                       322: self.tline322,
+                     }
+        if 'tline404a' in self.__dict__:
+            self.tline.update({
                       422: self.tline422,
                       423: self.tline423,
                       404: self.tline404,
-                     }
+            })
 
         assert self.hdr['CTYPE2'].strip() == 'LOG-DENS'
         assert self.hdr['CTYPE1'].strip() == 'LOG-COLU'
@@ -153,9 +161,10 @@ class paraH2COmodel(object):
         # ratio is not.
         self.modelratio1 = self.tline321/self.tline303
         self.modelratio2 = self.tline322/self.tline321
-        self.modelratio_423_404 = self.tline423/self.tline404
-        self.modelratio_422_404 = self.tline422/self.tline404
-        self.modelratio_404_303 = self.tline404/self.tline303
+        if 'tline404a' in self.__dict__:
+            self.modelratio_423_404 = self.tline423/self.tline404
+            self.modelratio_422_404 = self.tline422/self.tline404
+            self.modelratio_404_303 = self.tline404/self.tline303
 
         self.model_logabundance = np.log10(10**self.columnarr / u.pc.to(u.cm) /
                                            10**self.densityarr)
@@ -165,29 +174,32 @@ class paraH2COmodel(object):
                   " {1:0.1f} since loading grids.".format(t2-t0,t2-t1))
 
     def grid_getmatch_321to303(self, ratio, eratio):
-            match,indbest,chi2r = grid_fitter.grid_getmatch(ratio, eratio,
-                                                            self.modelratio1)
-            return chi2r
+        match,indbest,chi2r = grid_fitter.grid_getmatch(ratio, eratio,
+                                                        self.modelratio1)
+        return chi2r
 
     def grid_getmatch_404to303(self, ratio, eratio):
+        if hasattr(self, 'modelratio_404_303'):
             match,indbest,chi2r = grid_fitter.grid_getmatch(ratio, eratio,
                                                             self.modelratio_404_303)
             return chi2r
 
     def grid_getmatch_422to404(self, ratio, eratio):
+        if hasattr(self, 'modelratio_422_404'):
             match,indbest,chi2r = grid_fitter.grid_getmatch(ratio, eratio,
                                                             self.modelratio_422_404)
             return chi2r
 
     def grid_getmatch_423to404(self, ratio, eratio):
+        if hasattr(self, 'modelratio_423_404'):
             match,indbest,chi2r = grid_fitter.grid_getmatch(ratio, eratio,
                                                             self.modelratio_423_404)
             return chi2r
 
     def grid_getmatch_322to321(self, ratio, eratio):
-            match,indbest,chi2r = grid_fitter.grid_getmatch(ratio, eratio,
-                                                            self.modelratio2)
-            return chi2r
+        match,indbest,chi2r = grid_fitter.grid_getmatch(ratio, eratio,
+                                                        self.modelratio2)
+        return chi2r
 
     @property
     def chi2(self):
