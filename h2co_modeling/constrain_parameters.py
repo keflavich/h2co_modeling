@@ -128,7 +128,7 @@ class paraH2COmodel(object):
                       321: self.tline321,
                       322: self.tline322,
                      }
-        if hasattr(self, 'tline404a')
+        if hasattr(self, 'tline404a'):
             self.tline.update({
                       422: self.tline422,
                       423: self.tline423,
@@ -161,7 +161,7 @@ class paraH2COmodel(object):
         # ratio is not.
         self.modelratio1 = self.tline321/self.tline303
         self.modelratio2 = self.tline322/self.tline321
-        if 'tline404a' in self.__dict__:
+        if hasattr(self, 'tline404'):
             self.modelratio_423_404 = self.tline423/self.tline404
             self.modelratio_422_404 = self.tline422/self.tline404
             self.modelratio_404_303 = self.tline404/self.tline303
