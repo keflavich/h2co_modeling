@@ -58,22 +58,13 @@ class paraH2COmodel(object):
             if os.path.exists(gpath(fname_template.format(line=line, textau='tex'))):
                 self.__dict__['texgrid{0}'.format(line)] = fits.getdata(gpath(fname_template.format(line=line, textau='tex')))
                 self.__dict__['taugrid{0}'.format(line)] = fits.getdata(gpath(fname_template.format(line=line, textau='tau')))
+                print("Found and loaded file {0}".format(gpath('fjdu_pH2CO_{0}_tex_5kms.fits'.format(line))))
             else:
                 print("Did not find {0}".format(gpath('fjdu_pH2CO_{0}_tex_5kms.fits'.format(line))))
 
-
+        # example old-style loading
         #self.texgrid303 = texgrid303 = fits.getdata(gpath('fjdu_pH2CO_303_tex_5kms.fits'))
-        #self.taugrid303 = taugrid303 = fits.getdata(gpath('fjdu_pH2CO_303_tau_5kms.fits'))
-        #self.texgrid321 = texgrid321 = fits.getdata(gpath('fjdu_pH2CO_321_tex_5kms.fits'))
-        #self.taugrid321 = taugrid321 = fits.getdata(gpath('fjdu_pH2CO_321_tau_5kms.fits'))
-        #self.texgrid322 = texgrid322 = fits.getdata(gpath('fjdu_pH2CO_322_tex_5kms.fits'))
-        #self.taugrid322 = taugrid322 = fits.getdata(gpath('fjdu_pH2CO_322_tau_5kms.fits'))
-        #self.texgrid404 = texgrid404 = fits.getdata(gpath('fjdu_pH2CO_404_tex_5kms.fits'))
-        #self.taugrid404 = taugrid404 = fits.getdata(gpath('fjdu_pH2CO_404_tau_5kms.fits'))
-        #self.texgrid422 = texgrid422 = fits.getdata(gpath('fjdu_pH2CO_422_tex_5kms.fits'))
-        #self.taugrid422 = taugrid422 = fits.getdata(gpath('fjdu_pH2CO_422_tau_5kms.fits'))
-        #self.texgrid423 = texgrid423 = fits.getdata(gpath('fjdu_pH2CO_423_tex_5kms.fits'))
-        #self.taugrid423 = taugrid423 = fits.getdata(gpath('fjdu_pH2CO_423_tau_5kms.fits'))
+
         self.hdr = fits.getheader(gpath('fjdu_pH2CO_303_tex_5kms.fits'))
 
         t1 = time.time()
