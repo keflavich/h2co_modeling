@@ -459,6 +459,8 @@ class paraH2COmodel(generic_paraH2COmodel):
         pl.subplots_adjust(wspace=0.25, hspace=0.45)
 
 
+    parplot = parplot_J32
+
     def parplot_J43(self, par1='col', par2='dens', nlevs=5, levels=None,
                 colors=[(0.5,0,0), (0.75,0,0), (1.0,0,0), (1.0,0.25,0), (0.75,0.5,0)],
                 colorsf=[0.0, 0.33, 0.66, 1.0, 'w']):
