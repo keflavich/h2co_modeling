@@ -86,7 +86,7 @@ class paraH2COmodel(object):
                           (self.texgrid321-self.Tbackground))
         self.tline322a = ((1.0-np.exp(-np.array(self.taugrid322))) *
                           (self.texgrid322-self.Tbackground))
-        if 'tline404a' in self.__dict__:
+        if hasattr(self, 'taugrid404'):
             self.tline404a = ((1.0-np.exp(-np.array(self.taugrid404))) *
                               (self.texgrid404-self.Tbackground))
             self.tline423a = ((1.0-np.exp(-np.array(self.taugrid423))) *
@@ -112,7 +112,7 @@ class paraH2COmodel(object):
         self.tline322 = map_coordinates(self.tline322a,
                                    upsinds/upsample_factor[:,None,None,None],
                                    mode='nearest')
-        if 'tline404a' in self.__dict__:
+        if hasattr(self, 'tline404a'):
             self.tline404 = map_coordinates(self.tline404a,
                                        upsinds/upsample_factor[:,None,None,None],
                                        mode='nearest')
@@ -128,7 +128,7 @@ class paraH2COmodel(object):
                       321: self.tline321,
                       322: self.tline322,
                      }
-        if 'tline404a' in self.__dict__:
+        if hasattr(self, 'tline404a')
             self.tline.update({
                       422: self.tline422,
                       423: self.tline423,
