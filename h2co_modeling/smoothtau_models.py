@@ -8,12 +8,8 @@ from . import hopkins_pdf
 from . import turbulent_pdfs
 from .turbulent_pdfs import lognormal_massweighted
 
-try:
-    from agpy import readcol
-    tablereader = lambda x: readcol(x, asRecArray=True)
-except ImportError:
-    import astropy.table
-    tablereader = lambda x: astropy.table.read(x, format='ascii')
+import astropy.table
+tablereader = lambda x: astropy.table.read(x, format='ascii')
 
 import os
 path = __file__

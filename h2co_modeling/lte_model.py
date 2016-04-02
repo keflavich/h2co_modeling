@@ -18,7 +18,7 @@ oh2co = {'tex':18.75*u.K,
          'total_column': 1e12*u.cm**-2,
          'partition_function': 44.6812, # splatalogue's 18.75
          'degeneracy': gI*gJ*gK,
-         'dipole_moment': 2.331e-18*u.esu*u.cm, #2.331*u.debye,
+         #'dipole_moment': 2.331e-18*u.esu*u.cm, #2.331*u.debye,
         }
 
 oh2co_212 = {
@@ -41,12 +41,13 @@ ph2co = {'tex':18.75*u.K,
          'total_column': 1e12*u.cm**-2,
          'partition_function': 44.6812, # splatalogue's 18.75
          'degeneracy': gI*gJ*gK,
-         'dipole_moment': 2.331e-18*u.esu*u.cm, #2.331*u.debye,
+         #'dipole_moment': 2.331e-18*u.esu*u.cm, #2.331*u.debye,
         }
 
 ph2co_303 = {
          'frequency': 218.22219*u.GHz,
          'energy_upper': kb_cgs*20.95582*u.K,
+             'einstein_A': 10**-3.55007/u.s,
 }
 ph2co_303.update(ph2co)
 ph2co_303['dnu'] = (1*u.km/u.s/constants.c * ph2co_303['frequency'])
@@ -54,6 +55,7 @@ ph2co_303['dnu'] = (1*u.km/u.s/constants.c * ph2co_303['frequency'])
 ph2co_321 = {
          'frequency': 218.76007*u.GHz,
          'energy_upper': kb_cgs*68.11081*u.K,
+             'einstein_A': 10**-3.80235/u.s,
 }
 ph2co_321.update(ph2co)
 ph2co_321['dnu'] = (1*u.km/u.s/constants.c * ph2co_321['frequency'])
@@ -61,6 +63,7 @@ ph2co_321['dnu'] = (1*u.km/u.s/constants.c * ph2co_321['frequency'])
 ph2co_322 = {
          'frequency': 218.47563*u.GHz,
          'energy_upper': kb_cgs*68.0937*u.K,
+             'einstein_A': 10**-3.80373/u.s,
 }
 ph2co_322.update(ph2co)
 ph2co_322['dnu'] = (1*u.km/u.s/constants.c * ph2co_322['frequency'])
