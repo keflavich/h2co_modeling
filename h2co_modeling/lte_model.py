@@ -100,11 +100,15 @@ T_322 = np.array([line_brightness(tex=tex*u.K, partition_function=pf,
 if __name__ == "__main__":
     import pylab as pl
 
-    print("tau303 = {0}".format(line_tau(**ph2co_303)))
-    print("tau321 = {0}".format(line_tau(**ph2co_321)))
-    print("tau322 = {0}".format(line_tau(**ph2co_322)))
-    print("r303/r321 = {0}".format(line_brightness(**ph2co_321)/line_brightness(**ph2co_303)))
-    print("r303/r322 = {0}".format(line_brightness(**ph2co_322)/line_brightness(**ph2co_303)))
+    #del ph2co_303['dnu']
+    #del ph2co_321['dnu']
+    #del ph2co_322['dnu']
+
+    #print("tau303 = {0}".format(line_tau(**ph2co_303)))
+    #print("tau321 = {0}".format(line_tau(**ph2co_321)))
+    #print("tau322 = {0}".format(line_tau(**ph2co_322)))
+    #print("r303/r321 = {0}".format(line_brightness(**ph2co_321)/line_brightness(**ph2co_303)))
+    #print("r303/r322 = {0}".format(line_brightness(**ph2co_322)/line_brightness(**ph2co_303)))
 
 
     pl.clf()
