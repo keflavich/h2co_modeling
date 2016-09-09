@@ -14,7 +14,7 @@ gI = 3/4.# (2 I + 1) (I + 1) / (2 I + 1)^sigma; sigma=2; I=1/2
 gJ = 2 * J + 1
 gK = 1 # K-level doubling removes the degeneracy in (slightly) asymmetric tops
 
-oh2co = {'tex':18.75*u.K, 
+oh2co = {'tex':18.75*u.K,
          'total_column': 1e12*u.cm**-2,
          'partition_function': 44.6812, # splatalogue's 18.75
          'degeneracy': gI*gJ*gK,
@@ -31,39 +31,41 @@ oh2co_212['dnu'] = (1*u.km/u.s/constants.c * oh2co_212['frequency'])
 
 # 303
 J = 3
-gI = 0.25
+gI = 0.25 # according to Mangum 2015, p24, this is 0.75? only for ortho
 gJ = 2*J+1
-gK = 1
+gK_303 = 1 # supposedly, k!=0 has gK=2, but K=0 has gK=1?
+gK_321 = 1 # however, LAMDA has identical degeneracies=7 for all 3
+gK_322 = 1
 
 # 321 has same parameters for g
+# except maybe that gK=2
 
-ph2co = {'tex':18.75*u.K, 
+ph2co = {'tex':18.75*u.K,
          'total_column': 1e12*u.cm**-2,
          'partition_function': 44.6812, # splatalogue's 18.75
-         'degeneracy': gI*gJ*gK,
          #'dipole_moment': 2.331e-18*u.esu*u.cm, #2.331*u.debye,
         }
 
-ph2co_303 = {
-         'frequency': 218.22219*u.GHz,
-         'energy_upper': kb_cgs*20.95582*u.K,
+ph2co_303 = {'frequency': 218.22219*u.GHz,
+             'energy_upper': kb_cgs*20.95582*u.K,
              'einstein_A': 10**-3.55007/u.s,
+             'degeneracy': gI*gJ*gK_303,
 }
 ph2co_303.update(ph2co)
 ph2co_303['dnu'] = (1*u.km/u.s/constants.c * ph2co_303['frequency'])
 
-ph2co_321 = {
-         'frequency': 218.76007*u.GHz,
-         'energy_upper': kb_cgs*68.11081*u.K,
+ph2co_321 = {'frequency': 218.76007*u.GHz,
+             'energy_upper': kb_cgs*68.11081*u.K,
              'einstein_A': 10**-3.80235/u.s,
+             'degeneracy': gI*gJ*gK_321,
 }
 ph2co_321.update(ph2co)
 ph2co_321['dnu'] = (1*u.km/u.s/constants.c * ph2co_321['frequency'])
 
-ph2co_322 = {
-         'frequency': 218.47563*u.GHz,
-         'energy_upper': kb_cgs*68.0937*u.K,
+ph2co_322 = {'frequency': 218.47563*u.GHz,
+             'energy_upper': kb_cgs*68.0937*u.K,
              'einstein_A': 10**-3.80373/u.s,
+             'degeneracy': gI*gJ*gK_322,
 }
 ph2co_322.update(ph2co)
 ph2co_322['dnu'] = (1*u.km/u.s/constants.c * ph2co_322['frequency'])
@@ -124,3 +126,5 @@ if __name__ == "__main__":
 
     pl.draw(); pl.show()
 
+    pl.figure()
+    pl.plot(T_321/T_303, tem, label='321/303')
