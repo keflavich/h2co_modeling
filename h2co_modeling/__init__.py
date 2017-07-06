@@ -1,1 +1,2 @@
 from .smoothtau_models import SmoothtauModels
+import temperature_mapper
