@@ -144,37 +144,40 @@ def makefits(data, btype, densities=densities, temperatures=temperatures,
              columns=columns, ):
 
     newfile = fits.PrimaryHDU(data=data)
-    newfile.header.update('BTYPE' ,  btype )
+    newfile.header['BTYPE'] = btype
 
 
-    newfile.header.update('CRVAL1' ,  min(columns) )
-    newfile.header.update('CRPIX1' ,  1 )
-    newfile.header.update('CDELT1' , columns[1]-columns[0] )
-    newfile.header.update('CTYPE1' ,  'LOG-COLU' )
+    newfile.header['CRVAL1'] = min(columns)
+    newfile.header['CRPIX1'] = 1
+    newfile.header['CDELT1'] = columns[1]-columns[0]
+    newfile.header['CTYPE1'] = 'LOG-COLU'
 
-    newfile.header.update('CRVAL2' ,  min(densities) )
-    newfile.header.update('CRPIX2' ,  1 )
-    newfile.header.update('CDELT2' , densities[1]-densities[0] )
-    newfile.header.update('CTYPE2' ,  'LOG-DENS' )
+    newfile.header['CRVAL2'] = min(densities)
+    newfile.header['CRPIX2'] = 1
+    newfile.header['CDELT2'] = densities[1]-densities[0]
+    newfile.header['CTYPE2'] = 'LOG-DENS'
 
-    newfile.header.update('CRVAL3' ,  (min(temperatures)) )
-    newfile.header.update('CRPIX3' ,  1 )
+    newfile.header['CRVAL3'] = (min(temperatures))
+    newfile.header['CRPIX3'] = 1
     if len(np.unique(temperatures)) == 1:
-        newfile.header.update('CTYPE3' ,  'ONE-TEMP' )
-        newfile.header.update('CDELT3' , temperatures[0])
+        newfile.header['CTYPE3'] = 'ONE-TEMP'
+        newfile.header['CDELT3'] = temperatures[0]
     else:
-        newfile.header.update('CTYPE3' ,  'LIN-TEMP' )
-        newfile.header.update('CDELT3' , (np.unique(temperatures)[1]) - (np.unique(temperatures)[0]) )
+        newfile.header['CTYPE3'] = 'LIN-TEMP'
+        newfile.header['CDELT3'] = (np.unique(temperatures)[1]) - (np.unique(temperatures)[0])
     return newfile
 
 if __name__ == "__main__":
     import re
-    from paths import gpath
+    try:
+        from paths import gpath
+    except ImportError:
+        gpath = lambda x: x
     bt = re.compile("tex|tau|flux")
 
     (fTI, fpars, fbad_pars) = compute_grid(Radex=pyradex.fjdu.Fjdu,
                                            run_kwargs={})
-    
+
     for pn in fpars:
         btype = bt.search(pn).group()
         ff = makefits(fpars[pn], btype, densities=densities,
@@ -201,32 +204,29 @@ if __name__ == "__main__":
         ff = makefits(pars[pn], btype, densities=densities,
                       temperatures=temperatures, columns=columns)
         outfile = 'pH2CO_{line}_{type}_{dv}.fits'.format(line=pn[-3:],
-                                                          type=btype,
-                                                          dv='5kms')
+                                                         type=btype, dv='5kms')
         ff.writeto(gpath(outfile),
                    clobber=True)
         print(outfile)
 
     ff = makefits(pars['fluxgrid_321']/pars['fluxgrid_303'], 'ratio',
-             densities=densities, temperatures=temperatures, columns=columns)
+                  densities=densities, temperatures=temperatures,
+                  columns=columns)
     outfile = 'pH2CO_{line}_{type}_{dv}.fits'.format(line='321to303',
-                                                          type='ratio',
-                                                          dv='5kms')
+                                                     type='ratio', dv='5kms')
     ff.writeto(gpath(outfile), clobber=True)
 
     log.info("FJDU had {0} bad pars".format(len(fbad_pars)))
     log.info("RADEX had {0} bad pars".format(len(bad_pars)))
-    
+
 
     # look at differences
     for pn in pars:
         btype = bt.search(pn).group()
         outfile = 'pH2CO_{line}_{type}_{dv}.fits'.format(line=pn[-3:],
-                                                          type=btype,
-                                                          dv='5kms')
+                                                         type=btype, dv='5kms')
         header = fits.getheader(gpath(outfile))
         im1 = fits.getdata(gpath('fjdu_'+outfile))
         im2 = fits.getdata(gpath(outfile))
         hdu = fits.PrimaryHDU(data=im1-im2, header=header)
         hdu.writeto(gpath('diff_fjdu-radex_'+outfile), clobber=True)
-
