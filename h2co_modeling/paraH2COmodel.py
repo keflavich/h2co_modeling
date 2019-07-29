@@ -175,7 +175,8 @@ class generic_paraH2COmodel(object):
 
         for parname in ('logh2column', 'elogh2column', 'logabundance',
                         'elogabundance'):
-            row[parname] = getattr(self, parname)
+            if hasattr(self, parname):
+                row[parname] = getattr(self, parname)
 
         self._parconstraints = row
 
