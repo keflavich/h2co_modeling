@@ -396,9 +396,10 @@ class paraH2COmodel(generic_paraH2COmodel):
                    levels=levels, colors=colors, zorder=10)
         pl.plot(xmaxlike, ymaxlike, 'o', markerfacecolor='none', markeredgecolor='k')
         pl.plot(xexpect, yexpect, 'x', markerfacecolor='none', markeredgecolor='k')
-        pl.title("log(p-H$_2$CO/H$_2$) "
-                 "$= {0:0.1f}\pm{1:0.1f}$".format(self.logabundance,
-                                                  self.elogabundance))
+        if hasattr(self, 'logabundance') and hasattr(self, 'elogabundance'):
+            pl.title("log(p-H$_2$CO/H$_2$) "
+                     "$= {0:0.1f}\pm{1:0.1f}$".format(self.logabundance,
+                                                      self.elogabundance))
 
         ax3 = pl.subplot(2,2,3)
         if hasattr(self.chi2_h2, 'size'):
@@ -546,9 +547,10 @@ class paraH2COmodel(generic_paraH2COmodel):
                    levels=self.chi2.min()+levels)
         pl.plot(xmaxlike, ymaxlike, 'o', markerfacecolor='none', markeredgecolor='k')
         pl.plot(xexpect, yexpect, 'x', markerfacecolor='none', markeredgecolor='k')
-        pl.title("log(p-H$_2$CO/H$_2$) "
-                 "$= {0:0.1f}\pm{1:0.1f}$".format(self.logabundance,
-                                                  self.elogabundance))
+        if hasattr(self, 'logabundance') and hasattr(self, 'elogabundance'):
+            pl.title("log(p-H$_2$CO/H$_2$) "
+                     "$= {0:0.1f}\pm{1:0.1f}$".format(self.logabundance,
+                                                      self.elogabundance))
 
         ax3 = pl.subplot(2,3,3)
         if hasattr(self.chi2_h2, 'size'):
