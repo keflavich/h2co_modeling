@@ -111,7 +111,7 @@ class paraH2COmodel(generic_paraH2COmodel):
                                     gridsize[1]/self.tline303a.shape[1], # density
                                     gridsize[2]/self.tline303a.shape[2]], # column
                                    dtype='float')
-        uzinds,uyinds,uxinds = upsinds = np.indices([x*us
+        uzinds,uyinds,uxinds = upsinds = np.indices([int(x*us)
                                                      for x,us in zip(self.tline303a.shape,
                                                                      upsample_factor)],
                                                    dtype='float')
